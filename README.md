@@ -21,9 +21,6 @@ Positive Phill is built with privacy as a core principle. All your data stays on
 - [Terms of Service](docs/terms.html)
 - [Support](docs/support.html)
 
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Support
 
