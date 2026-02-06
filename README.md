@@ -1,6 +1,6 @@
 # Positive Phill 🌤️
 
-![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.1.3-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS%20%7C%20Web-teal.svg)
 ![License](https://img.shields.io/badge/license-Proprietary-red.svg)
 ![Made with Flutter](https://img.shields.io/badge/Made%20with-Flutter-02569B.svg?logo=flutter&logoColor=white)
@@ -23,7 +23,7 @@ Try the web version instantly:
 | **Home (Light)** | **Home (Dark)** | **Inspirational Board** |
 |:---:|:---:|:---:|
 | <img src="assets/screenshots/home_light.png" width="240"> | <img src="assets/screenshots/home_dark.png" width="240"> | <img src="assets/screenshots/board.png" width="240"> |
----
+
 
 ## 🚀 Key Features
 
@@ -103,7 +103,7 @@ All rights reserved.
   <img src="assets/screenshots/icon.png" width="60" style="border-radius: 12px; margin-top: 20px;">
   
   <p style="font-size: 12px; color: #666;">
-    © 2026 Possum Mattern Studios • Mesa, AZ<br>
+    © 2026 Possum Mattern Studios <br>
     <i>Built with ❤️, ☕, and Flutter</i>
   </p>
 
