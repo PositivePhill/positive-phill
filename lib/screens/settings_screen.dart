@@ -44,16 +44,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadTextBacklight() async {
     final enabled = await _storage.getTextBacklightEnabled();
-    if (mounted) setState(() => _textBacklightEnabled = enabled);
+    if (mounted) {
+      setState(() => _textBacklightEnabled = enabled);
+    }
   }
 
   Future<void> _loadCustomBackground() async {
     final bgPath = await _storage.getCustomBackgroundPath();
     final bgWeb = await _storage.getCustomBackgroundWeb();
-    if (mounted) setState(() {
-      _customBgPath = bgPath;
-      _customBgWeb = bgWeb;
-    });
+    if (mounted) {
+      setState(() {
+        _customBgPath = bgPath;
+        _customBgWeb = bgWeb;
+      });
+    }
   }
 
   Future<void> _pickBackgroundImage() async {
