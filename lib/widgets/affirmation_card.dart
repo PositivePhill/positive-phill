@@ -16,7 +16,7 @@ class AffirmationCard extends StatefulWidget {
     super.key,
     required this.affirmation,
     this.showActions = true,
-    this.textBacklightEnabled = false,
+    this.textBacklightEnabled = true,
   });
 
   @override
