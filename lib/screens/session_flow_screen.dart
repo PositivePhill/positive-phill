@@ -20,8 +20,8 @@ class SessionFlowScreen extends StatefulWidget {
 class _SessionFlowScreenState extends State<SessionFlowScreen> {
   final AffirmationsService _affirmationsService = AffirmationsService();
   final AdsService _adsService = AdsService();
-  
-  List<AffirmationCategory> _selectedCategories = [];
+  /* unused catergory we might use later or delete if not needed */
+ /* List<AffirmationCategory> _selectedCategories = []; */
   List<Affirmation> _sessionPack = [];
   int _currentIndex = 0;
   bool _sessionStarted = false;
@@ -43,7 +43,8 @@ class _SessionFlowScreenState extends State<SessionFlowScreen> {
 
   void _startSessionWithCategories(List<AffirmationCategory> categories) {
     setState(() {
-      _selectedCategories = List.from(categories);
+      /* might user later or delete not sure yet */
+    /*  _selectedCategories = List.from(categories); */
       _sessionPack = _affirmationsService.getSessionPackForCategories(categories);
       _sessionStarted = true;
       _currentIndex = 0;
@@ -78,7 +79,8 @@ class _SessionFlowScreenState extends State<SessionFlowScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    /* not currently used but might use later or delete */
+  /*  final textTheme = Theme.of(context).textTheme; */
 
     return CelebrationAnimation(
       trigger: _showCelebration,
@@ -203,7 +205,7 @@ class CategoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+   final textTheme = Theme.of(context).textTheme;
 
     final borderColor = isSelected ? colorScheme.primary : colorScheme.outline.withValues(alpha: 0.2);
     final bg = isSelected ? colorScheme.secondaryContainer : colorScheme.primaryContainer;
@@ -265,7 +267,7 @@ class SessionContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+   final textTheme = Theme.of(context).textTheme;
 
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -320,7 +322,7 @@ class CompletionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+   final textTheme = Theme.of(context).textTheme;
     final userProvider = context.watch<UserProvider>();
 
     return Padding(

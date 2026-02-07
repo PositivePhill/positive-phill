@@ -10,11 +10,13 @@ import 'package:positive_phill/theme.dart';
 class AffirmationCard extends StatefulWidget {
   final Affirmation affirmation;
   final bool showActions;
+  final bool textBacklightEnabled;
 
   const AffirmationCard({
     super.key,
     required this.affirmation,
     this.showActions = true,
+    this.textBacklightEnabled = true,
   });
 
   @override
@@ -102,14 +104,14 @@ class _AffirmationCardState extends State<AffirmationCard> with SingleTickerProv
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       decoration: BoxDecoration(
         color: colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: colorScheme.outline.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -118,6 +120,15 @@ class _AffirmationCardState extends State<AffirmationCard> with SingleTickerProv
               style: textTheme.headlineSmall?.copyWith(
                 color: colorScheme.onPrimaryContainer,
                 height: 1.5,
+                shadows: widget.textBacklightEnabled
+                    ? [
+                        Shadow(
+                          color: Colors.black.withOpacity(0.6),
+                          offset: const Offset(1, 1),
+                          blurRadius: 4,
+                        ),
+                      ]
+                    : null,
               ),
               textAlign: TextAlign.center,
             ),

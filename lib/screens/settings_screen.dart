@@ -31,6 +31,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _versionLabel = 'Version';
   String? _customBgPath;
   String? _customBgWeb;
+  bool _textBacklightEnabled = true;
 
   @override
   void initState() {
@@ -38,15 +39,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadNotificationSettings();
     _loadVersion();
     _loadCustomBackground();
+    _loadTextBacklight();
+  }
+
+  Future<void> _loadTextBacklight() async {
+    final enabled = await _storage.getTextBacklightEnabled();
+    if (mounted) {
+      setState(() => _textBacklightEnabled = enabled);
+    }
   }
 
   Future<void> _loadCustomBackground() async {
     final bgPath = await _storage.getCustomBackgroundPath();
     final bgWeb = await _storage.getCustomBackgroundWeb();
-    if (mounted) setState(() {
-      _customBgPath = bgPath;
-      _customBgWeb = bgWeb;
-    });
+    if (mounted) {
+      setState(() {
+        _customBgPath = bgPath;
+        _customBgWeb = bgWeb;
+      });
+    }
   }
 
   Future<void> _pickBackgroundImage() async {
@@ -316,6 +327,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           SwitchListTile(
+            title: const Text('Text Backlight'),
+            subtitle: const Text('Improves readability on bright backgrounds'),
+            value: _textBacklightEnabled,
+            onChanged: (value) async {
+              HapticsService.feedback(FeedbackType.selection);
+              await _storage.setTextBacklightEnabled(value);
+              if (mounted) setState(() => _textBacklightEnabled = value);
+            },
+            secondary: Icon(Icons.text_fields, color: colorScheme.primary, size: 24),
+          ),
+          SwitchListTile(
             title: const Text('Dark Mode'),
             subtitle: const Text('Toggle dark theme'),
             value: themeProvider.themeMode == ThemeMode.dark,
@@ -330,6 +352,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ? Icons.dark_mode
                   : Icons.light_mode,
               color: colorScheme.primary,
+              size: 24,
             ),
           ),
           ListTile(

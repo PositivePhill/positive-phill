@@ -112,6 +112,8 @@ class _WebOpenExternal extends StatelessWidget {
                 onPressed: () async {
                   final uri = Uri.parse(url);
                   if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+                    // 🔥 ADD THIS SAFETY LINE BELOW:
+                    if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unable to open link.')));
                   }
                 },
@@ -154,6 +156,8 @@ class _WebErrorFallback extends StatelessWidget {
                 onPressed: () async {
                   final uri = Uri.parse(url);
                   if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+                    // 🔥 ADD THIS SAFETY LINE BELOW:
+                    if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unable to open link.')));
                   }
                 },

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -15,6 +14,8 @@ import 'package:positive_phill/widgets/celebration_animation.dart';
 import 'package:positive_phill/widgets/streak_display.dart';
 import 'package:positive_phill/widgets/xp_progress_bar.dart';
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -49,6 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final path = await storage.getCustomBackgroundPath();
     final web = await storage.getCustomBackgroundWeb();
     await storage.getCustomBackgroundAlignment();
+    await storage.getTextBacklightEnabled();
     if (mounted) {
       StorageService.customBackgroundPath.value = path;
       StorageService.customBackgroundWeb.value = web;
@@ -154,11 +156,13 @@ class _HomeScreenState extends State<HomeScreen> {
             StorageService.customBackgroundPath,
             StorageService.customBackgroundWeb,
             StorageService.customBackgroundAlignment,
+            StorageService.textBacklightEnabled,
           ]),
           builder: (context, _) {
             final bgPath = StorageService.customBackgroundPath.value;
             final bgWeb = StorageService.customBackgroundWeb.value;
             final align = StorageService.customBackgroundAlignment.value;
+            final textBacklight = StorageService.textBacklightEnabled.value;
             Widget bgWidget = ColoredBox(color: Theme.of(context).scaffoldBackgroundColor);
             bool hasCustomBg = false;
             if (kIsWeb) {
@@ -185,6 +189,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 hasCustomBg = true;
               }
             }
+            final textBacklightShadows = textBacklight
+                ? [
+                    Shadow(
+                      color: Colors.black.withOpacity(0.6),
+                      offset: const Offset(1, 1),
+                      blurRadius: 4,
+                    ),
+                  ]
+                : null;
             return Stack(
               children: [
                 Positioned.fill(child: bgWidget),
@@ -215,14 +228,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
-                        child: Text(
-                          'Positive Phill',
-                          style: textTheme.headlineMedium?.copyWith(
-                            color: colorScheme.primary,
-                            fontWeight: FontWeight.bold,
+                        child: Center(
+                          child: Text(
+                            'Positive Phill',
+                            style: textTheme.headlineMedium?.copyWith(
+                              color: colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                              shadows: textBacklightShadows,
+                            ),
                           ),
                         ),
                       ),
@@ -260,6 +275,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             style: textTheme.titleMedium?.copyWith(
                               color: colorScheme.onSecondaryContainer,
                               fontStyle: FontStyle.italic,
+                              shadows: textBacklightShadows,
                             ),
                           ),
                         ),
@@ -273,6 +289,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: textTheme.titleLarge?.copyWith(
                         color: colorScheme.onSurface,
                         fontWeight: FontWeight.bold,
+                        shadows: textBacklightShadows,
                       ),
                     ),
                   ),
@@ -300,6 +317,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             itemBuilder: (context, index) {
                               return AffirmationCard(
                                 affirmation: _currentPack[index],
+                                textBacklightEnabled: textBacklight,
                               );
                             },
                           ),

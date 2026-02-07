@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:positive_phill/models/user_progress.dart';
@@ -13,10 +12,12 @@ class StorageService {
   static const String _customBgWebKey = 'custom_bg_web';
   static const String _customBgAlignXKey = 'custom_bg_align_x';
   static const String _customBgAlignYKey = 'custom_bg_align_y';
+  static const String _textBacklightEnabledKey = 'text_backlight_enabled';
 
   static final ValueNotifier<String?> customBackgroundPath = ValueNotifier<String?>(null);
   static final ValueNotifier<String?> customBackgroundWeb = ValueNotifier<String?>(null);
   static final ValueNotifier<Alignment> customBackgroundAlignment = ValueNotifier<Alignment>(Alignment.center);
+  static final ValueNotifier<bool> textBacklightEnabled = ValueNotifier<bool>(true);
 
   Future<UserProgress> loadUserProgress() async {
     try {
@@ -180,6 +181,28 @@ class StorageService {
       customBackgroundAlignment.value = Alignment(x, y);
     } catch (e) {
       debugPrint('Failed to save custom background alignment: $e');
+    }
+  }
+
+  Future<bool> getTextBacklightEnabled() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final value = prefs.getBool(_textBacklightEnabledKey) ?? true;
+      textBacklightEnabled.value = value;
+      return value;
+    } catch (e) {
+      debugPrint('Failed to load text backlight: $e');
+      return true;
+    }
+  }
+
+  Future<void> setTextBacklightEnabled(bool enabled) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_textBacklightEnabledKey, enabled);
+      textBacklightEnabled.value = enabled;
+    } catch (e) {
+      debugPrint('Failed to save text backlight: $e');
     }
   }
 
