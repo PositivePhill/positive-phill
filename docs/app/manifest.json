@@ -1,11 +1,11 @@
 {
-    "name": "dreamflow_counter",
-    "short_name": "dreamflow_counter",
+    "name": "Positive Phill",
+    "short_name": "Positive Phill",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#121212",
     "theme_color": "#8FE6D6",
-    "description": "A new Flutter project.",
+    "description": "Positive Phill",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
