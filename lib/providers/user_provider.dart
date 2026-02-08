@@ -4,6 +4,7 @@ import 'package:positive_phill/services/storage_service.dart';
 
 class UserProvider with ChangeNotifier {
   final StorageService _storageService = StorageService();
+  final Set<String> _sessionPaidIds = {};
   UserProgress _progress = const UserProgress();
   bool _isLoading = true;
 
@@ -88,15 +89,21 @@ class UserProvider with ChangeNotifier {
   }
 
   Future<void> toggleFavorite(String affirmationId) async {
+    final wasFavorite = _progress.favorites.contains(affirmationId);
     final favorites = List<String>.from(_progress.favorites);
-    
+
     if (favorites.contains(affirmationId)) {
       favorites.remove(affirmationId);
     } else {
       favorites.add(affirmationId);
-      await addXp(10);
     }
-    
+
+    final isNowFavorite = favorites.contains(affirmationId);
+    if (!wasFavorite && isNowFavorite && !_sessionPaidIds.contains(affirmationId)) {
+      await addXp(10);
+      _sessionPaidIds.add(affirmationId);
+    }
+
     _progress = _progress.copyWith(favorites: favorites);
     notifyListeners();
     await _saveProgress();
