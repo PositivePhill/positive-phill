@@ -120,6 +120,7 @@ class UserProvider with ChangeNotifier {
   }
 
   Future<void> resetProgress() async {
+    _sessionPaidIds.clear();
     _progress = const UserProgress();
     notifyListeners();
     await _storageService.resetProgress();

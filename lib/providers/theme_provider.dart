@@ -13,22 +13,39 @@ class ThemeProvider with ChangeNotifier {
   }
 
   Future<void> _loadThemeMode() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final stored = prefs.getString(_themeModeKey);
-      if (stored == 'light') {
-        _themeMode = ThemeMode.light;
-      } else if (stored == 'dark') {
-        _themeMode = ThemeMode.dark;
+    final prefs = await SharedPreferences.getInstance();
+
+    final Object? raw = prefs.get(_themeModeKey);
+    ThemeMode resolved = ThemeMode.system;
+
+    if (raw is String) {
+      if (raw == ThemeMode.light.name) {
+        resolved = ThemeMode.light;
+      } else if (raw == ThemeMode.dark.name) {
+        resolved = ThemeMode.dark;
       } else {
-        _themeMode = ThemeMode.system;
+        resolved = ThemeMode.system;
       }
-      notifyListeners();
-    } catch (e) {
-      _themeMode = ThemeMode.system;
-      notifyListeners();
+    } else if (raw is int) {
+      // 🔁 Legacy migration (old builds stored index)
+      if (raw == ThemeMode.light.index) {
+        resolved = ThemeMode.light;
+      } else if (raw == ThemeMode.dark.index) {
+        resolved = ThemeMode.dark;
+      } else {
+        resolved = ThemeMode.system;
+      }
+
+      // Persist migrated value as string
+      await prefs.setString(_themeModeKey, resolved.name);
+    } else {
+      resolved = ThemeMode.system;
     }
+
+    _themeMode = resolved;
+    notifyListeners();
   }
+
 
   Future<void> setThemeMode(ThemeMode mode) async {
     _themeMode = mode;

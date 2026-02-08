@@ -36,5 +36,5 @@ web/build/
 # Logs
 *.log
 
-# gitignore generated files
+#generated files
 .cursorrules
