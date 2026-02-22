@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeProvider with ChangeNotifier {
@@ -14,31 +15,41 @@ class ThemeProvider with ChangeNotifier {
   Future<void> _loadThemeMode() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final modeIndex = prefs.getInt(_themeModeKey) ?? 0;
-      _themeMode = ThemeMode.values[modeIndex];
+      final stored = prefs.getString(_themeModeKey);
+      if (stored == 'light') {
+        _themeMode = ThemeMode.light;
+      } else if (stored == 'dark') {
+        _themeMode = ThemeMode.dark;
+      } else {
+        _themeMode = ThemeMode.system;
+      }
       notifyListeners();
     } catch (e) {
       _themeMode = ThemeMode.system;
+      notifyListeners();
     }
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
     _themeMode = mode;
     notifyListeners();
-    
+
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(_themeModeKey, mode.index);
+      await prefs.setString(_themeModeKey, mode.name);
     } catch (e) {
       // Fail silently
     }
   }
 
   void toggleTheme() {
-    if (_themeMode == ThemeMode.light) {
+    if (_themeMode == ThemeMode.dark) {
+      setThemeMode(ThemeMode.light);
+    } else if (_themeMode == ThemeMode.light) {
       setThemeMode(ThemeMode.dark);
     } else {
-      setThemeMode(ThemeMode.light);
+      final brightness = SchedulerBinding.instance.platformDispatcher.platformBrightness;
+      setThemeMode(brightness == Brightness.dark ? ThemeMode.light : ThemeMode.dark);
     }
   }
 }
