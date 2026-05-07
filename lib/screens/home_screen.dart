@@ -64,20 +64,25 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _loadDailyContent() {
+  Future<void> _loadDailyContent() async {
+    await AffirmationsService.preload();
     final seed = DateTime.now().millisecondsSinceEpoch;
+    final pack = await _affirmationsService.getDailyPack(category: _selectedCategory);
+    if (!mounted) return;
     setState(() {
       _dailyTheme = _affirmationsService.getRandomMessage(category: _selectedCategory, seed: seed);
-      _currentPack = _affirmationsService.getDailyPack(category: _selectedCategory);
+      _currentPack = pack;
     });
   }
 
-  void _onCategoryChanged(AffirmationCategory? category) {
+  Future<void> _onCategoryChanged(AffirmationCategory? category) async {
     final seed = DateTime.now().millisecondsSinceEpoch;
+    final pack = await _affirmationsService.getRandomPack(category: category, count: 5, seed: seed);
+    if (!mounted) return;
     setState(() {
       _selectedCategory = category;
       _dailyTheme = _affirmationsService.getRandomMessage(category: category, seed: seed);
-      _currentPack = _affirmationsService.getRandomPack(category: category, count: 5, seed: seed);
+      _currentPack = pack;
       _currentPage = 0;
     });
     _pageController.jumpToPage(0);
@@ -114,9 +119,10 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _loadExtraPack() {
+  Future<void> _loadExtraPack() async {
+    final extraPack = await _affirmationsService.getExtraPack(category: _selectedCategory);
+    if (!mounted) return;
     setState(() {
-      final extraPack = _affirmationsService.getExtraPack(category: _selectedCategory);
       _currentPack.addAll(extraPack);
       _pageController.animateToPage(
         _currentPack.length - 5,

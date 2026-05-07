@@ -63,7 +63,8 @@ class NotificationsService {
     if (kIsWeb) return;
     try {
       await init();
-      final pack = _affirmationsService.getDailyPack();
+      await AffirmationsService.preload();
+      final pack = await _affirmationsService.getDailyPack();
       final affirmation = pack.isNotEmpty ? pack.first.text : _affirmationsService.getDailyTheme();
       final scheduledDate = _nextInstanceOfTime(time);
 

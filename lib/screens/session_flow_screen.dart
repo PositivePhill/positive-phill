@@ -41,11 +41,11 @@ class _SessionFlowScreenState extends State<SessionFlowScreen> {
     super.dispose();
   }
 
-  void _startSessionWithCategories(List<AffirmationCategory> categories) {
+  Future<void> _startSessionWithCategories(List<AffirmationCategory> categories) async {
+    final pack = await _affirmationsService.getSessionPackForCategories(categories);
+    if (!mounted) return;
     setState(() {
-      /* might user later or delete not sure yet */
-    /*  _selectedCategories = List.from(categories); */
-      _sessionPack = _affirmationsService.getSessionPackForCategories(categories);
+      _sessionPack = pack;
       _sessionStarted = true;
       _currentIndex = 0;
     });
@@ -110,7 +110,7 @@ class _SessionFlowScreenState extends State<SessionFlowScreen> {
 }
 
 class CategorySelection extends StatefulWidget {
-  final Function(List<AffirmationCategory>) onConfirm;
+  final Future<void> Function(List<AffirmationCategory>) onConfirm;
 
   const CategorySelection({super.key, required this.onConfirm});
 
@@ -175,7 +175,11 @@ class _CategorySelectionState extends State<CategorySelection> {
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed: _selected.isEmpty ? null : () => widget.onConfirm(_selected.toList()),
+              onPressed: _selected.isEmpty
+                  ? null
+                  : () async {
+                      await widget.onConfirm(_selected.toList());
+                    },
               icon: Icon(Icons.play_arrow, color: colorScheme.onPrimary),
               label: Text('Start Session', style: TextStyle(color: colorScheme.onPrimary)),
               style: FilledButton.styleFrom(

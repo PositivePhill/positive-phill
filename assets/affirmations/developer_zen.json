@@ -1,0 +1,17 @@
+{
+  "id": "developer_zen",
+  "name": "Developer Zen",
+  "emoji": "💻",
+  "description": "Calm focus affirmations for builders, coders, and problem-solvers.",
+  "tags": ["focus", "discipline", "creativity"],
+  "affirmations": [
+    { "id": "developer_zen_001", "text": "I solve one problem at a time with patience and clarity.", "category": "focus" },
+    { "id": "developer_zen_002", "text": "My code and my mindset improve with every iteration I ship.", "category": "discipline" },
+    { "id": "developer_zen_003", "text": "I stay curious, refactor fearlessly, and learn from every bug.", "category": "focus" },
+    { "id": "developer_zen_004", "text": "I communicate kindly in reviews and celebrate small wins.", "category": "social" },
+    { "id": "developer_zen_005", "text": "I step away when I need rest and return with fresh perspective.", "category": "calm" },
+    { "id": "developer_zen_006", "text": "I trust my process; complex systems become clear one layer at a time.", "category": "focus" },
+    { "id": "developer_zen_007", "text": "I am resilient when builds fail—each fix makes me stronger.", "category": "confidence" },
+    { "id": "developer_zen_008", "text": "I craft quality with intention, without chasing impossible perfection.", "category": "discipline" }
+  ]
+}

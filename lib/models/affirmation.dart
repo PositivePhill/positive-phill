@@ -15,13 +15,27 @@ class Affirmation {
     'categories': categories.map((e) => e.name).toList(),
   };
 
-  factory Affirmation.fromJson(Map<String, dynamic> json) => Affirmation(
-    id: json['id'] as String,
-    text: json['text'] as String,
-    categories: (json['categories'] as List<dynamic>)
-        .map((e) => AffirmationCategory.values.firstWhere((cat) => cat.name == e))
-        .toList(),
-  );
+  factory Affirmation.fromJson(Map<String, dynamic> json) {
+    final categoriesRaw = json['categories'] as List<dynamic>?;
+    final categorySingle = json['category'] as String?;
+    final List<AffirmationCategory> categories;
+    if (categoriesRaw != null && categoriesRaw.isNotEmpty) {
+      categories = categoriesRaw
+          .map((e) => AffirmationCategory.values.firstWhere((cat) => cat.name == e as String))
+          .toList();
+    } else if (categorySingle != null) {
+      categories = [
+        AffirmationCategory.values.firstWhere((cat) => cat.name == categorySingle),
+      ];
+    } else {
+      throw FormatException('Affirmation JSON must include categories or category: $json');
+    }
+    return Affirmation(
+      id: json['id'] as String,
+      text: json['text'] as String,
+      categories: categories,
+    );
+  }
 }
 
 enum AffirmationCategory {

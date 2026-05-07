@@ -4,6 +4,7 @@ class UserProgress {
   final int streak;
   final DateTime? lastOpenDate;
   final DateTime? lastPackDate;
+  final DateTime? lastSessionCompletedDate;
   final int extraPacksToday;
   final List<String> favorites;
 
@@ -13,6 +14,7 @@ class UserProgress {
     this.streak = 0,
     this.lastOpenDate,
     this.lastPackDate,
+    this.lastSessionCompletedDate,
     this.extraPacksToday = 0,
     this.favorites = const [],
   });
@@ -26,6 +28,7 @@ class UserProgress {
     int? streak,
     DateTime? lastOpenDate,
     DateTime? lastPackDate,
+    DateTime? lastSessionCompletedDate,
     int? extraPacksToday,
     List<String>? favorites,
   }) => UserProgress(
@@ -34,6 +37,7 @@ class UserProgress {
     streak: streak ?? this.streak,
     lastOpenDate: lastOpenDate ?? this.lastOpenDate,
     lastPackDate: lastPackDate ?? this.lastPackDate,
+    lastSessionCompletedDate: lastSessionCompletedDate ?? this.lastSessionCompletedDate,
     extraPacksToday: extraPacksToday ?? this.extraPacksToday,
     favorites: favorites ?? this.favorites,
   );
@@ -44,6 +48,7 @@ class UserProgress {
     'streak': streak,
     'lastOpenDate': lastOpenDate?.toIso8601String(),
     'lastPackDate': lastPackDate?.toIso8601String(),
+    'lastSessionCompletedDate': lastSessionCompletedDate?.toIso8601String(),
     'extraPacksToday': extraPacksToday,
     'favorites': favorites,
   };
@@ -57,6 +62,9 @@ class UserProgress {
         : null,
     lastPackDate: json['lastPackDate'] != null
         ? DateTime.parse(json['lastPackDate'] as String)
+        : null,
+    lastSessionCompletedDate: json['lastSessionCompletedDate'] != null
+        ? DateTime.parse(json['lastSessionCompletedDate'] as String)
         : null,
     extraPacksToday: json['extraPacksToday'] as int? ?? 0,
     favorites: (json['favorites'] as List<dynamic>?)?.map((e) => e as String).toList() ?? [],

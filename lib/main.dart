@@ -5,10 +5,12 @@ import 'package:provider/provider.dart';
 import 'package:positive_phill/providers/theme_provider.dart';
 import 'package:positive_phill/providers/user_provider.dart';
 import 'package:positive_phill/theme.dart';
+import 'package:positive_phill/services/affirmations_service.dart';
 import 'package:positive_phill/nav.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AffirmationsService.preload();
   // Initialize Mobile Ads only on supported platforms (Android/iOS). Skip on web.
   if (!kIsWeb) {
     try {

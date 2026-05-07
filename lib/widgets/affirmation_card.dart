@@ -95,8 +95,9 @@ class _AffirmationCardState extends State<AffirmationCard> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
-    final userProvider = context.watch<UserProvider>();
-    final isFavorite = userProvider.isFavorite(widget.affirmation.id);
+    final isFavorite = context.select<UserProvider, bool>(
+      (provider) => provider.progress.favorites.contains(widget.affirmation.id),
+    );
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 

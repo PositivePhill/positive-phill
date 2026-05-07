@@ -1,0 +1,459 @@
+{
+  "id": "core",
+  "name": "Core",
+  "emoji": "✨",
+  "description": "The original Positive Phill affirmation collection.",
+  "tags": [
+    "core"
+  ],
+  "affirmations": [
+    {
+      "id": "conf_1",
+      "text": "I am confident in my abilities and trust in my decisions.",
+      "categories": [
+        "confidence"
+      ]
+    },
+    {
+      "id": "conf_2",
+      "text": "I radiate self-assurance and inspire others with my presence.",
+      "categories": [
+        "confidence"
+      ]
+    },
+    {
+      "id": "conf_3",
+      "text": "I believe in myself and embrace every challenge with courage.",
+      "categories": [
+        "confidence"
+      ]
+    },
+    {
+      "id": "conf_4",
+      "text": "My confidence grows stronger with every step I take forward.",
+      "categories": [
+        "confidence"
+      ]
+    },
+    {
+      "id": "conf_5",
+      "text": "I am worthy of success and all the good things life offers.",
+      "categories": [
+        "confidence"
+      ]
+    },
+    {
+      "id": "conf_6",
+      "text": "I trust my intuition and make decisions with clarity.",
+      "categories": [
+        "confidence"
+      ]
+    },
+    {
+      "id": "conf_7",
+      "text": "I am becoming a better version of myself every day.",
+      "categories": [
+        "confidence"
+      ]
+    },
+    {
+      "id": "conf_8",
+      "text": "I stand tall, speak boldly, and own my unique power.",
+      "categories": [
+        "confidence"
+      ]
+    },
+    {
+      "id": "calm_1",
+      "text": "I am at peace with myself and the world around me.",
+      "categories": [
+        "calm"
+      ]
+    },
+    {
+      "id": "calm_2",
+      "text": "I breathe deeply and release all tension from my body.",
+      "categories": [
+        "calm"
+      ]
+    },
+    {
+      "id": "calm_3",
+      "text": "Serenity flows through me, calming my mind and soul.",
+      "categories": [
+        "calm"
+      ]
+    },
+    {
+      "id": "calm_4",
+      "text": "I choose peace over worry, and trust that all is well.",
+      "categories": [
+        "calm"
+      ]
+    },
+    {
+      "id": "calm_5",
+      "text": "My mind is clear, my heart is light, and I am present.",
+      "categories": [
+        "calm"
+      ]
+    },
+    {
+      "id": "calm_6",
+      "text": "I release what I cannot control and embrace the moment.",
+      "categories": [
+        "calm"
+      ]
+    },
+    {
+      "id": "calm_7",
+      "text": "Tranquility surrounds me and fills me with gentle ease.",
+      "categories": [
+        "calm"
+      ]
+    },
+    {
+      "id": "calm_8",
+      "text": "I am safe, supported, and completely at peace.",
+      "categories": [
+        "calm"
+      ]
+    },
+    {
+      "id": "grat_1",
+      "text": "I am grateful for the abundance that flows into my life.",
+      "categories": [
+        "gratitude"
+      ]
+    },
+    {
+      "id": "grat_2",
+      "text": "Every day brings new blessings I appreciate deeply.",
+      "categories": [
+        "gratitude"
+      ]
+    },
+    {
+      "id": "grat_3",
+      "text": "I appreciate the beauty in every moment and every person.",
+      "categories": [
+        "gratitude"
+      ]
+    },
+    {
+      "id": "grat_4",
+      "text": "My heart overflows with thankfulness for all I have.",
+      "categories": [
+        "gratitude"
+      ]
+    },
+    {
+      "id": "grat_5",
+      "text": "I am blessed beyond measure and recognize my good fortune.",
+      "categories": [
+        "gratitude"
+      ]
+    },
+    {
+      "id": "grat_6",
+      "text": "I give thanks for both the big and small joys in life.",
+      "categories": [
+        "gratitude"
+      ]
+    },
+    {
+      "id": "grat_7",
+      "text": "Gratitude transforms my perspective and opens my heart.",
+      "categories": [
+        "gratitude"
+      ]
+    },
+    {
+      "id": "grat_8",
+      "text": "I celebrate my progress and honor how far I have come.",
+      "categories": [
+        "gratitude"
+      ]
+    },
+    {
+      "id": "disc_1",
+      "text": "I am committed to my goals and take consistent action.",
+      "categories": [
+        "discipline"
+      ]
+    },
+    {
+      "id": "disc_2",
+      "text": "My discipline creates the life I desire and deserve.",
+      "categories": [
+        "discipline"
+      ]
+    },
+    {
+      "id": "disc_3",
+      "text": "I show up for myself daily with dedication and focus.",
+      "categories": [
+        "discipline"
+      ]
+    },
+    {
+      "id": "disc_4",
+      "text": "I have the willpower to overcome any obstacle in my path.",
+      "categories": [
+        "discipline"
+      ]
+    },
+    {
+      "id": "disc_5",
+      "text": "Every choice I make aligns with my highest intentions.",
+      "categories": [
+        "discipline"
+      ]
+    },
+    {
+      "id": "disc_6",
+      "text": "I am patient and persistent in pursuing my dreams.",
+      "categories": [
+        "discipline"
+      ]
+    },
+    {
+      "id": "disc_7",
+      "text": "My habits shape my future, and I choose wisely.",
+      "categories": [
+        "discipline"
+      ]
+    },
+    {
+      "id": "disc_8",
+      "text": "I honor my commitments and stay true to my word.",
+      "categories": [
+        "discipline"
+      ]
+    },
+    {
+      "id": "heal_1",
+      "text": "I am healing and growing stronger every single day.",
+      "categories": [
+        "healing"
+      ]
+    },
+    {
+      "id": "heal_2",
+      "text": "My body, mind, and spirit are in perfect harmony.",
+      "categories": [
+        "healing"
+      ]
+    },
+    {
+      "id": "heal_3",
+      "text": "I release past pain and embrace a brighter future.",
+      "categories": [
+        "healing"
+      ]
+    },
+    {
+      "id": "heal_4",
+      "text": "Love and light flow through me, healing all wounds.",
+      "categories": [
+        "healing"
+      ]
+    },
+    {
+      "id": "heal_5",
+      "text": "I forgive myself and others, freeing my heart to heal.",
+      "categories": [
+        "healing"
+      ]
+    },
+    {
+      "id": "heal_6",
+      "text": "Every breath I take restores balance and wellness.",
+      "categories": [
+        "healing"
+      ]
+    },
+    {
+      "id": "heal_7",
+      "text": "I am worthy of healing, peace, and abundant health.",
+      "categories": [
+        "healing"
+      ]
+    },
+    {
+      "id": "heal_8",
+      "text": "My recovery is a journey I honor with compassion.",
+      "categories": [
+        "healing"
+      ]
+    },
+    {
+      "id": "focus_1",
+      "text": "I am fully present and deeply focused on what matters.",
+      "categories": [
+        "focus"
+      ]
+    },
+    {
+      "id": "focus_2",
+      "text": "My mind is sharp, clear, and ready to achieve greatness.",
+      "categories": [
+        "focus"
+      ]
+    },
+    {
+      "id": "focus_3",
+      "text": "I eliminate distractions and channel all my energy wisely.",
+      "categories": [
+        "focus"
+      ]
+    },
+    {
+      "id": "focus_4",
+      "text": "I am laser-focused on my priorities and accomplish them.",
+      "categories": [
+        "focus"
+      ]
+    },
+    {
+      "id": "focus_5",
+      "text": "Concentration flows through me effortlessly and naturally.",
+      "categories": [
+        "focus"
+      ]
+    },
+    {
+      "id": "focus_6",
+      "text": "I direct my attention toward what brings me closer to my goals.",
+      "categories": [
+        "focus"
+      ]
+    },
+    {
+      "id": "focus_7",
+      "text": "Every moment I dedicate to focus creates lasting results.",
+      "categories": [
+        "focus"
+      ]
+    },
+    {
+      "id": "focus_8",
+      "text": "I am in control of my mind and where I place my energy.",
+      "categories": [
+        "focus"
+      ]
+    },
+    {
+      "id": "social_1",
+      "text": "I connect authentically and build meaningful relationships.",
+      "categories": [
+        "social"
+      ]
+    },
+    {
+      "id": "social_2",
+      "text": "People are drawn to my warmth and positive energy.",
+      "categories": [
+        "social"
+      ]
+    },
+    {
+      "id": "social_3",
+      "text": "I communicate with confidence, kindness, and clarity.",
+      "categories": [
+        "social"
+      ]
+    },
+    {
+      "id": "social_4",
+      "text": "I am a good listener and make others feel valued.",
+      "categories": [
+        "social"
+      ]
+    },
+    {
+      "id": "social_5",
+      "text": "My presence brings joy and light to those around me.",
+      "categories": [
+        "social"
+      ]
+    },
+    {
+      "id": "social_6",
+      "text": "I attract supportive and uplifting people into my life.",
+      "categories": [
+        "social"
+      ]
+    },
+    {
+      "id": "social_7",
+      "text": "I am comfortable being myself in any social situation.",
+      "categories": [
+        "social"
+      ]
+    },
+    {
+      "id": "social_8",
+      "text": "My friendships are deep, genuine, and filled with trust.",
+      "categories": [
+        "social"
+      ]
+    },
+    {
+      "id": "money_1",
+      "text": "I am a magnet for prosperity and financial abundance.",
+      "categories": [
+        "money"
+      ]
+    },
+    {
+      "id": "money_2",
+      "text": "Money flows to me easily from multiple sources.",
+      "categories": [
+        "money"
+      ]
+    },
+    {
+      "id": "money_3",
+      "text": "I am worthy of wealth and financial freedom.",
+      "categories": [
+        "money"
+      ]
+    },
+    {
+      "id": "money_4",
+      "text": "My income grows steadily, and I manage it wisely.",
+      "categories": [
+        "money"
+      ]
+    },
+    {
+      "id": "money_5",
+      "text": "I release all limiting beliefs about money and success.",
+      "categories": [
+        "money"
+      ]
+    },
+    {
+      "id": "money_6",
+      "text": "Opportunities for abundance surround me everywhere I go.",
+      "categories": [
+        "money"
+      ]
+    },
+    {
+      "id": "money_7",
+      "text": "I create value in the world and am rewarded generously.",
+      "categories": [
+        "money"
+      ]
+    },
+    {
+      "id": "money_8",
+      "text": "Financial success is my birthright and I claim it now.",
+      "categories": [
+        "money"
+      ]
+    }
+  ]
+}

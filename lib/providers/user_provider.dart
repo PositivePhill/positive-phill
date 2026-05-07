@@ -28,6 +28,11 @@ class UserProvider with ChangeNotifier {
     }
   }
 
+  bool _isSameDay(DateTime? a, DateTime b) {
+    if (a == null) return false;
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
   void _checkAndUpdateStreak() {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -77,15 +82,20 @@ class UserProvider with ChangeNotifier {
   }
 
   Future<void> completeSession() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    if (_isSameDay(_progress.lastSessionCompletedDate, today)) {
+      return;
+    }
+
     final newStreak = _progress.streak + 1;
-    
     _progress = _progress.copyWith(
       streak: newStreak,
-      lastOpenDate: DateTime.now(),
+      lastOpenDate: now,
+      lastSessionCompletedDate: today,
     );
-    
+
     await addXp(20);
-    notifyListeners();
   }
 
   Future<void> toggleFavorite(String affirmationId) async {
