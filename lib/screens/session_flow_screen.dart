@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:positive_phill/models/affirmation.dart';
+import 'package:positive_phill/models/daily_quests.dart';
 import 'package:positive_phill/providers/user_provider.dart';
+import 'package:positive_phill/quest_helper.dart';
 import 'package:positive_phill/services/affirmations_service.dart';
 import 'package:positive_phill/services/ads_service.dart';
 import 'package:positive_phill/services/haptics_service.dart';
@@ -64,7 +66,9 @@ class _SessionFlowScreenState extends State<SessionFlowScreen> {
   Future<void> _completeSession() async {
     final userProvider = context.read<UserProvider>();
     await userProvider.completeSession();
-    
+    // Quest: complete today's session (centralised helper)
+    if (mounted) await completeQuest(context, QuestType.completeSession);
+
     setState(() {
       _sessionCompleted = true;
       _showCelebration = true;
@@ -136,59 +140,72 @@ class _CategorySelectionState extends State<CategorySelection> {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Choose Your Focus',
-            style: textTheme.headlineMedium?.copyWith(
-              color: colorScheme.onSurface,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Select one or more categories for your 2-3 minute session',
-            style: textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          Expanded(
-            child: GridView.count(
-              crossAxisCount: 2,
-              mainAxisSpacing: AppSpacing.md,
-              crossAxisSpacing: AppSpacing.md,
-              children: AffirmationCategory.values.map((category) {
-                final isSelected = _selected.contains(category);
-                return CategoryCard(
-                  category: category,
-                  isSelected: isSelected,
-                  onTap: () => _toggle(category),
-                );
-              }).toList(),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: _selected.isEmpty
-                  ? null
-                  : () async {
-                      await widget.onConfirm(_selected.toList());
-                    },
-              icon: Icon(Icons.play_arrow, color: colorScheme.onPrimary),
-              label: Text('Start Session', style: TextStyle(color: colorScheme.onPrimary)),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                backgroundColor: colorScheme.primary,
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Choose Your Focus',
+                style: textTheme.headlineMedium?.copyWith(
+                  color: colorScheme.onSurface,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Select one or more categories for your 2-3 minute session',
+                style: textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              Expanded(
+                child: GridView.builder(
+                  gridDelegate:
+                      const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 280,
+                    mainAxisExtent: 110,
+                    mainAxisSpacing: AppSpacing.md,
+                    crossAxisSpacing: AppSpacing.md,
+                  ),
+                  itemCount: AffirmationCategory.values.length,
+                  itemBuilder: (context, index) {
+                    final category = AffirmationCategory.values[index];
+                    final isSelected = _selected.contains(category);
+                    return CategoryCard(
+                      category: category,
+                      isSelected: isSelected,
+                      onTap: () => _toggle(category),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _selected.isEmpty
+                      ? null
+                      : () async {
+                          await widget.onConfirm(_selected.toList());
+                        },
+                  icon: Icon(Icons.play_arrow, color: colorScheme.onPrimary),
+                  label: Text('Start Session',
+                      style: TextStyle(color: colorScheme.onPrimary)),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.md),
+                    backgroundColor: colorScheme.primary,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -220,6 +237,8 @@ class CategoryCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppRadius.lg),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md, vertical: AppSpacing.sm),
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -228,24 +247,29 @@ class CategoryCard extends StatelessWidget {
         child: Stack(
           children: [
             Center(
-              child: Column(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(category.emoji, style: const TextStyle(fontSize: 48)),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    category.displayName,
-                    style: textTheme.titleMedium?.copyWith(color: textColor, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
+                  Text(category.emoji, style: const TextStyle(fontSize: 28)),
+                  const SizedBox(width: AppSpacing.sm),
+                  Flexible(
+                    child: Text(
+                      category.displayName,
+                      style: textTheme.titleMedium?.copyWith(
+                          color: textColor, fontWeight: FontWeight.w600),
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
             ),
             if (isSelected)
               Positioned(
-                top: 8,
-                right: 8,
-                child: Icon(Icons.check_circle, color: colorScheme.primary, size: 22),
+                top: 4,
+                right: 4,
+                child: Icon(Icons.check_circle,
+                    color: colorScheme.primary, size: 18),
               ),
           ],
         ),

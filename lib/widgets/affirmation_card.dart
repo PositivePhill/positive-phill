@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:share_plus/share_plus.dart' show SharePlus, ShareParams;
 import 'package:positive_phill/models/affirmation.dart';
+import 'package:positive_phill/models/daily_quests.dart';
+import 'package:positive_phill/providers/tts_provider.dart';
 import 'package:positive_phill/providers/user_provider.dart';
+import 'package:positive_phill/quest_helper.dart';
 import 'package:positive_phill/services/haptics_service.dart';
 import 'package:positive_phill/theme.dart';
 
@@ -23,28 +25,14 @@ class AffirmationCard extends StatefulWidget {
   State<AffirmationCard> createState() => _AffirmationCardState();
 }
 
-class _AffirmationCardState extends State<AffirmationCard> with SingleTickerProviderStateMixin {
+class _AffirmationCardState extends State<AffirmationCard>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
-  final FlutterTts _tts = FlutterTts();
-  bool _isSpeaking = false;
 
   @override
   void initState() {
     super.initState();
-    _tts.setLanguage('en-US');
-    _tts.setStartHandler(() {
-      if (mounted) setState(() => _isSpeaking = true);
-    });
-    _tts.setCompletionHandler(() {
-      if (mounted) setState(() => _isSpeaking = false);
-    });
-    _tts.setCancelHandler(() {
-      if (mounted) setState(() => _isSpeaking = false);
-    });
-    _tts.setErrorHandler((msg) {
-      if (mounted) setState(() => _isSpeaking = false);
-    });
     _controller = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -56,85 +44,126 @@ class _AffirmationCardState extends State<AffirmationCard> with SingleTickerProv
 
   @override
   void dispose() {
-    _tts.stop();
     _controller.dispose();
     super.dispose();
   }
 
-  void _onFavorite() {
+  Future<void> _onFavorite() async {
     final userProvider = context.read<UserProvider>();
     final isFavorite = userProvider.isFavorite(widget.affirmation.id);
-    
     if (!isFavorite) {
       _controller.forward().then((_) => _controller.reverse());
       HapticsService.feedback(FeedbackType.light);
     }
-    
-    userProvider.toggleFavorite(widget.affirmation.id);
+    await userProvider.toggleFavorite(widget.affirmation.id);
+    // Quest: favorite one affirmation (guarded inside completeQuest)
+    if (!isFavorite && mounted) {
+      await completeQuest(context, QuestType.favoriteOne);
+    }
   }
 
   void _onShare() {
     HapticsService.feedback(FeedbackType.selection);
-    Share.share(
-      '${widget.affirmation.text}\n\n— Positive Phill by Possum Mattern Studios',
-      subject: 'Daily Affirmation',
+    SharePlus.instance.share(
+      ShareParams(
+        text: '${widget.affirmation.text}\n\n— Positive Phill by Possum Mattern Studios',
+        subject: 'Daily Affirmation',
+      ),
     );
   }
 
   Future<void> _onSpeak() async {
-    final text = widget.affirmation.text.trim();
-    if (text.isEmpty) return;
-    if (_isSpeaking) {
-      await _tts.stop();
-      if (mounted) setState(() => _isSpeaking = false);
-      return;
+    final tts = context.read<TtsProvider>();
+    if (!tts.voiceEnabled) return;
+    final isThisCardSpeaking =
+        tts.isSpeaking && tts.currentText == widget.affirmation.text;
+    if (isThisCardSpeaking) {
+      await tts.stop();
+    } else {
+      await tts.speak(widget.affirmation.text);
+      // Quest: listen with voice
+      if (mounted) await completeQuest(context, QuestType.usedVoice);
     }
-    await _tts.stop();
-    await _tts.speak(text);
   }
 
   @override
   Widget build(BuildContext context) {
     final isFavorite = context.select<UserProvider, bool>(
-      (provider) => provider.progress.favorites.contains(widget.affirmation.id),
+      (p) => p.progress.favorites.contains(widget.affirmation.id),
+    );
+    final isThisCardSpeaking = context.select<TtsProvider, bool>(
+      (p) => p.isSpeaking && p.currentText == widget.affirmation.text,
     );
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
+    final List<Shadow>? textShadows = widget.textBacklightEnabled
+        ? [
+            Shadow(
+              color: Colors.black.withValues(alpha: 0.6),
+              offset: const Offset(1, 1),
+              blurRadius: 4,
+            ),
+          ]
+        : null;
+
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
       decoration: BoxDecoration(
-        color: colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.2),
-          width: 1,
+        gradient: LinearGradient(
+          colors: [
+            colorScheme.primaryContainer,
+            colorScheme.primaryContainer.withValues(alpha: 0.85),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: colorScheme.primary.withValues(alpha: 0.15),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.shadow.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              widget.affirmation.text,
-              style: textTheme.headlineSmall?.copyWith(
-                color: colorScheme.onPrimaryContainer,
-                height: 1.5,
-                shadows: widget.textBacklightEnabled
-                    ? [
-                        Shadow(
-                          color: Colors.black.withOpacity(0.6),
-                          offset: const Offset(1, 1),
-                          blurRadius: 4,
-                        ),
-                      ]
-                    : null,
+            // Responsive text region — shrinks to fit within available height.
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.center,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: Text(
+                    widget.affirmation.text,
+                    style: textTheme.headlineSmall?.copyWith(
+                      color: colorScheme.onPrimaryContainer,
+                      height: 1.45,
+                      shadows: textShadows,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 6,
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: true,
+                  ),
+                ),
               ),
-              textAlign: TextAlign.center,
             ),
             if (widget.showActions) ...[
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.md),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -144,19 +173,19 @@ class _AffirmationCardState extends State<AffirmationCard> with SingleTickerProv
                       onPressed: _onFavorite,
                       icon: Icon(
                         isFavorite ? Icons.favorite : Icons.favorite_border,
-                        color: isFavorite ? Colors.red : colorScheme.secondary,
-                        size: 32,
+                        color: isFavorite ? Colors.red : colorScheme.primary,
+                        size: 30,
                       ),
-                      tooltip: 'Favorite (+10 XP)',
+                      tooltip: 'Favorite',
                     ),
                   ),
                   const SizedBox(width: AppSpacing.md),
                   IconButton(
                     onPressed: _onShare,
                     icon: Icon(
-                      Icons.share,
-                      color: colorScheme.secondary,
-                      size: 28,
+                      Icons.share_rounded,
+                      color: colorScheme.primary,
+                      size: 26,
                     ),
                     tooltip: 'Share',
                   ),
@@ -164,11 +193,15 @@ class _AffirmationCardState extends State<AffirmationCard> with SingleTickerProv
                   IconButton(
                     onPressed: _onSpeak,
                     icon: Icon(
-                      _isSpeaking ? Icons.stop_rounded : Icons.volume_up_rounded,
-                      color: colorScheme.secondary,
-                      size: 28,
+                      isThisCardSpeaking
+                          ? Icons.stop_rounded
+                          : Icons.volume_up_rounded,
+                      color: isThisCardSpeaking
+                          ? colorScheme.tertiary
+                          : colorScheme.primary,
+                      size: 26,
                     ),
-                    tooltip: _isSpeaking ? 'Stop' : 'Speak',
+                    tooltip: isThisCardSpeaking ? 'Stop' : 'Speak',
                   ),
                 ],
               ),

@@ -8,6 +8,9 @@ class UserProvider with ChangeNotifier {
   UserProgress _progress = const UserProgress();
   bool _isLoading = true;
 
+  /// Fires with the new level number each time the user levels up.
+  final ValueNotifier<int> levelUpNotifier = ValueNotifier(0);
+
   UserProgress get progress => _progress;
   bool get isLoading => _isLoading;
 
@@ -44,7 +47,8 @@ class UserProvider with ChangeNotifier {
       return;
     }
 
-    final lastOpenDay = DateTime(lastOpen.year, lastOpen.month, lastOpen.day);
+    final lastOpenDay =
+        DateTime(lastOpen.year, lastOpen.month, lastOpen.day);
     final daysDifference = today.difference(lastOpenDay).inDays;
 
     if (daysDifference > 1) {
@@ -64,20 +68,20 @@ class UserProvider with ChangeNotifier {
   }
 
   Future<void> addXp(int amount) async {
+    final oldLevel = _progress.level;
     final newXp = _progress.xp + amount;
     final newLevel = (newXp ~/ 200) + 1;
-    final leveledUp = newLevel > _progress.level;
 
     _progress = _progress.copyWith(
       xp: newXp,
       level: newLevel,
     );
-    
+
     notifyListeners();
     await _saveProgress();
 
-    if (leveledUp) {
-      debugPrint('Level up! New level: $newLevel');
+    if (newLevel > oldLevel) {
+      levelUpNotifier.value = newLevel;
     }
   }
 
@@ -88,11 +92,23 @@ class UserProvider with ChangeNotifier {
       return;
     }
 
+    final todayStr =
+        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    final dates = List<String>.from(_progress.completedDates);
+    if (!dates.contains(todayStr)) {
+      dates.add(todayStr);
+      // Keep last 90 entries to prevent unbounded growth
+      if (dates.length > 90) {
+        dates.removeRange(0, dates.length - 90);
+      }
+    }
+
     final newStreak = _progress.streak + 1;
     _progress = _progress.copyWith(
       streak: newStreak,
       lastOpenDate: now,
       lastSessionCompletedDate: today,
+      completedDates: dates,
     );
 
     await addXp(20);
@@ -109,7 +125,9 @@ class UserProvider with ChangeNotifier {
     }
 
     final isNowFavorite = favorites.contains(affirmationId);
-    if (!wasFavorite && isNowFavorite && !_sessionPaidIds.contains(affirmationId)) {
+    if (!wasFavorite &&
+        isNowFavorite &&
+        !_sessionPaidIds.contains(affirmationId)) {
       await addXp(10);
       _sessionPaidIds.add(affirmationId);
     }
@@ -119,7 +137,8 @@ class UserProvider with ChangeNotifier {
     await _saveProgress();
   }
 
-  bool isFavorite(String affirmationId) => _progress.favorites.contains(affirmationId);
+  bool isFavorite(String affirmationId) =>
+      _progress.favorites.contains(affirmationId);
 
   Future<void> incrementExtraPacks() async {
     _progress = _progress.copyWith(

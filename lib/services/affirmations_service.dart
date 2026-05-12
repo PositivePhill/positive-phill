@@ -242,6 +242,15 @@ class AffirmationsService {
     return _effectiveAll.where((a) => a.categories.contains(category)).toList();
   }
 
+  Future<Affirmation?> getById(String id) async {
+    await preload();
+    try {
+      return _effectiveAll.firstWhere((a) => a.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
   List<Affirmation> _getShuffledPack(List<Affirmation> pool, int seed, int count) {
     if (pool.isEmpty) return [];
     final List<Affirmation> shuffled = List.from(pool);

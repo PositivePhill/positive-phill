@@ -7,6 +7,8 @@ class UserProgress {
   final DateTime? lastSessionCompletedDate;
   final int extraPacksToday;
   final List<String> favorites;
+  // yyyy-MM-dd strings for calendar heatmap; capped at 90 entries
+  final List<String> completedDates;
 
   const UserProgress({
     this.xp = 0,
@@ -17,11 +19,12 @@ class UserProgress {
     this.lastSessionCompletedDate,
     this.extraPacksToday = 0,
     this.favorites = const [],
+    this.completedDates = const [],
   });
 
   int get xpForNextLevel => level * 200;
   double get progressToNextLevel => xp % 200 / 200;
-  
+
   UserProgress copyWith({
     int? xp,
     int? level,
@@ -31,42 +34,55 @@ class UserProgress {
     DateTime? lastSessionCompletedDate,
     int? extraPacksToday,
     List<String>? favorites,
-  }) => UserProgress(
-    xp: xp ?? this.xp,
-    level: level ?? this.level,
-    streak: streak ?? this.streak,
-    lastOpenDate: lastOpenDate ?? this.lastOpenDate,
-    lastPackDate: lastPackDate ?? this.lastPackDate,
-    lastSessionCompletedDate: lastSessionCompletedDate ?? this.lastSessionCompletedDate,
-    extraPacksToday: extraPacksToday ?? this.extraPacksToday,
-    favorites: favorites ?? this.favorites,
-  );
+    List<String>? completedDates,
+  }) =>
+      UserProgress(
+        xp: xp ?? this.xp,
+        level: level ?? this.level,
+        streak: streak ?? this.streak,
+        lastOpenDate: lastOpenDate ?? this.lastOpenDate,
+        lastPackDate: lastPackDate ?? this.lastPackDate,
+        lastSessionCompletedDate:
+            lastSessionCompletedDate ?? this.lastSessionCompletedDate,
+        extraPacksToday: extraPacksToday ?? this.extraPacksToday,
+        favorites: favorites ?? this.favorites,
+        completedDates: completedDates ?? this.completedDates,
+      );
 
   Map<String, dynamic> toJson() => {
-    'xp': xp,
-    'level': level,
-    'streak': streak,
-    'lastOpenDate': lastOpenDate?.toIso8601String(),
-    'lastPackDate': lastPackDate?.toIso8601String(),
-    'lastSessionCompletedDate': lastSessionCompletedDate?.toIso8601String(),
-    'extraPacksToday': extraPacksToday,
-    'favorites': favorites,
-  };
+        'xp': xp,
+        'level': level,
+        'streak': streak,
+        'lastOpenDate': lastOpenDate?.toIso8601String(),
+        'lastPackDate': lastPackDate?.toIso8601String(),
+        'lastSessionCompletedDate':
+            lastSessionCompletedDate?.toIso8601String(),
+        'extraPacksToday': extraPacksToday,
+        'favorites': favorites,
+        'completedDates': completedDates,
+      };
 
   factory UserProgress.fromJson(Map<String, dynamic> json) => UserProgress(
-    xp: json['xp'] as int? ?? 0,
-    level: json['level'] as int? ?? 1,
-    streak: json['streak'] as int? ?? 0,
-    lastOpenDate: json['lastOpenDate'] != null 
-        ? DateTime.parse(json['lastOpenDate'] as String)
-        : null,
-    lastPackDate: json['lastPackDate'] != null
-        ? DateTime.parse(json['lastPackDate'] as String)
-        : null,
-    lastSessionCompletedDate: json['lastSessionCompletedDate'] != null
-        ? DateTime.parse(json['lastSessionCompletedDate'] as String)
-        : null,
-    extraPacksToday: json['extraPacksToday'] as int? ?? 0,
-    favorites: (json['favorites'] as List<dynamic>?)?.map((e) => e as String).toList() ?? [],
-  );
+        xp: json['xp'] as int? ?? 0,
+        level: json['level'] as int? ?? 1,
+        streak: json['streak'] as int? ?? 0,
+        lastOpenDate: json['lastOpenDate'] != null
+            ? DateTime.parse(json['lastOpenDate'] as String)
+            : null,
+        lastPackDate: json['lastPackDate'] != null
+            ? DateTime.parse(json['lastPackDate'] as String)
+            : null,
+        lastSessionCompletedDate: json['lastSessionCompletedDate'] != null
+            ? DateTime.parse(json['lastSessionCompletedDate'] as String)
+            : null,
+        extraPacksToday: json['extraPacksToday'] as int? ?? 0,
+        favorites: (json['favorites'] as List<dynamic>?)
+                ?.map((e) => e as String)
+                .toList() ??
+            [],
+        completedDates: (json['completedDates'] as List<dynamic>?)
+                ?.map((e) => e as String)
+                .toList() ??
+            [],
+      );
 }
