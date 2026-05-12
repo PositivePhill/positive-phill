@@ -120,7 +120,7 @@ class _LevelUpToastWidgetState extends State<_LevelUpToastWidget>
                         ),
                       ),
                       Text(
-                        'You reached Level ${ widget.level}',
+                        'You reached Level ${widget.level}',
                         style: textTheme.bodySmall?.copyWith(
                           color: colorScheme.onPrimaryContainer
                               .withValues(alpha: 0.8),

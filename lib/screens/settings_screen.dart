@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:positive_phill/platform/background_image.dart';
+import 'package:positive_phill/providers/quest_provider.dart';
 import 'package:positive_phill/providers/theme_provider.dart';
 import 'package:positive_phill/providers/tts_provider.dart';
 import 'package:positive_phill/providers/user_provider.dart';
@@ -303,13 +304,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             TextButton(
               onPressed: () async {
                 Navigator.of(dialogContext).pop();
-                await context.read<UserProvider>().resetProgress();
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Progress reset successfully')),
-                  );
-                }
+                final user = context.read<UserProvider>();
+                final quest = context.read<QuestProvider>();
+                final messenger = ScaffoldMessenger.of(context);
+                await user.resetProgress();
+                await quest.reset();
+                if (!context.mounted) return;
+                messenger.showSnackBar(
+                  const SnackBar(
+                      content: Text('Progress reset successfully')),
+                );
               },
               child: const Text('Reset'),
             ),

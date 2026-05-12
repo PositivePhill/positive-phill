@@ -13,32 +13,36 @@ class ThemeProvider with ChangeNotifier {
   }
 
   Future<void> _loadThemeMode() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    final Object? raw = prefs.get(_themeModeKey);
     ThemeMode resolved = ThemeMode.system;
 
-    if (raw is String) {
-      if (raw == ThemeMode.light.name) {
-        resolved = ThemeMode.light;
-      } else if (raw == ThemeMode.dark.name) {
-        resolved = ThemeMode.dark;
-      } else {
-        resolved = ThemeMode.system;
-      }
-    } else if (raw is int) {
-      // 🔁 Legacy migration (old builds stored index)
-      if (raw == ThemeMode.light.index) {
-        resolved = ThemeMode.light;
-      } else if (raw == ThemeMode.dark.index) {
-        resolved = ThemeMode.dark;
-      } else {
-        resolved = ThemeMode.system;
-      }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final Object? raw = prefs.get(_themeModeKey);
 
-      // Persist migrated value as string
-      await prefs.setString(_themeModeKey, resolved.name);
-    } else {
+      if (raw is String) {
+        if (raw == ThemeMode.light.name) {
+          resolved = ThemeMode.light;
+        } else if (raw == ThemeMode.dark.name) {
+          resolved = ThemeMode.dark;
+        } else {
+          resolved = ThemeMode.system;
+        }
+      } else if (raw is int) {
+        // 🔁 Legacy migration (old builds stored index)
+        if (raw == ThemeMode.light.index) {
+          resolved = ThemeMode.light;
+        } else if (raw == ThemeMode.dark.index) {
+          resolved = ThemeMode.dark;
+        } else {
+          resolved = ThemeMode.system;
+        }
+
+        // Persist migrated value as string
+        await prefs.setString(_themeModeKey, resolved.name);
+      } else {
+        resolved = ThemeMode.system;
+      }
+    } catch (e) {
       resolved = ThemeMode.system;
     }
 

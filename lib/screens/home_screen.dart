@@ -17,7 +17,6 @@ import 'package:positive_phill/services/ads_service.dart';
 import 'package:positive_phill/services/haptics_service.dart';
 import 'package:positive_phill/theme.dart';
 import 'package:positive_phill/widgets/affirmation_card.dart';
-import 'package:positive_phill/widgets/celebration_animation.dart';
 import 'package:positive_phill/widgets/daily_fortune_card.dart';
 import 'package:positive_phill/widgets/daily_quest_card.dart';
 import 'package:positive_phill/widgets/level_up_toast.dart';
@@ -41,7 +40,6 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Affirmation> _currentPack = [];
   String _dailyTheme = '';
   AffirmationCategory? _selectedCategory;
-  final bool _showCelebration = false;
   int _currentPage = 0;
   bool _zenMode = false;
   bool _readyForAutoRead = false;
@@ -52,6 +50,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Mood state (local — persisted via StorageService)
   DailyMood? _selectedMood;
+
+  ValueNotifier<int>? _levelUpNotifier;
 
   @override
   void initState() {
@@ -72,7 +72,9 @@ class _HomeScreenState extends State<HomeScreen> {
     // Listen after the first frame so UserProvider is loaded
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context.read<UserProvider>().levelUpNotifier.addListener(_onLevelUp);
+      final n = context.read<UserProvider>().levelUpNotifier;
+      _levelUpNotifier = n;
+      n.addListener(_onLevelUp);
     });
   }
 
@@ -87,14 +89,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
-    // Safe to call even if listener was never added (listener list no-ops)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Use a try/catch because the provider may already be disposed
-      try {
-        context.read<UserProvider>().levelUpNotifier
-            .removeListener(_onLevelUp);
-      } catch (_) {}
-    });
+    _levelUpNotifier?.removeListener(_onLevelUp);
     _autoReadDebounce?.cancel();
     _pageController.dispose();
     _adsService.dispose();
@@ -297,10 +292,8 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    return CelebrationAnimation(
-      trigger: _showCelebration,
-      child: Scaffold(
-        body: AnimatedBuilder(
+    return Scaffold(
+      body: AnimatedBuilder(
           animation: Listenable.merge([
             StorageService.customBackgroundPath,
             StorageService.customBackgroundWeb,
@@ -761,7 +754,6 @@ class _HomeScreenState extends State<HomeScreen> {
             );
           },
         ),
-      ),
     );
   }
 }

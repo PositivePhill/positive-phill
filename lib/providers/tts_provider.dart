@@ -21,6 +21,12 @@ class TtsProvider with ChangeNotifier {
   // and to skip stale calls when newer requests have already taken over.
   int _speakSeq = 0;
 
+  /// Epoch bumped when a playback ends or a new utterance is armed after
+  /// stop/delay. Completion/cancel/error handlers only clear state when
+  /// their epoch matches [_committedPlaybackEpoch].
+  int _playbackEpoch = 0;
+  int _committedPlaybackEpoch = 0;
+
   bool get voiceEnabled => _voiceEnabled;
   double get speechRate => _speechRate;
   double get pitch => _pitch;
@@ -43,21 +49,16 @@ class TtsProvider with ChangeNotifier {
       _isSpeaking = true;
       notifyListeners();
     });
-    _tts.setCompletionHandler(() {
-      _isSpeaking = false;
-      _currentText = null;
-      notifyListeners();
-    });
-    _tts.setCancelHandler(() {
-      _isSpeaking = false;
-      _currentText = null;
-      notifyListeners();
-    });
-    _tts.setErrorHandler((_) {
-      _isSpeaking = false;
-      _currentText = null;
-      notifyListeners();
-    });
+    _tts.setCompletionHandler(() => _tryEndPlaybackFromHandler());
+    _tts.setCancelHandler(() => _tryEndPlaybackFromHandler());
+    _tts.setErrorHandler((_) => _tryEndPlaybackFromHandler());
+  }
+
+  void _tryEndPlaybackFromHandler() {
+    if (_committedPlaybackEpoch != _playbackEpoch) return;
+    _isSpeaking = false;
+    _currentText = null;
+    notifyListeners();
   }
 
   Future<void> _loadSettings() async {
@@ -112,15 +113,19 @@ class TtsProvider with ChangeNotifier {
       // needs a brief moment after cancel() before a new speak() will
       // actually start, otherwise the browser drops the new request.
       await _tts.stop();
+      // New utterance arms a fresh playback epoch after the engine stops.
+      _playbackEpoch++;
       await Future<void>.delayed(const Duration(milliseconds: 80));
       // Bail out if a newer speak() request has already superseded this one.
       if (mySeq != _speakSeq) return;
+      _committedPlaybackEpoch = _playbackEpoch;
       _currentText = text;
       notifyListeners();
       await _tts.speak(text.trim());
     } catch (e) {
       debugPrint('TtsProvider: speak error: $e');
       if (mySeq == _speakSeq) {
+        _playbackEpoch++;
         _isSpeaking = false;
         _currentText = null;
         notifyListeners();
@@ -131,6 +136,7 @@ class TtsProvider with ChangeNotifier {
   Future<void> stop() async {
     // Invalidate any in-flight speak() so its post-delay continuation aborts.
     _speakSeq++;
+    _playbackEpoch++;
     try {
       await _tts.stop();
     } catch (e) {
