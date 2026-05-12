@@ -77,7 +77,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
     // Watch favorites so the list updates when user unfavorites
     final favorites = context.select<UserProvider, List<String>>(
-      (p) => List.unmodifiable(p.progress.favorites),
+      (p) => p.progress.favorites,
     );
 
     return Scaffold(

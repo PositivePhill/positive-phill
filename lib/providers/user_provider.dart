@@ -103,10 +103,20 @@ class UserProvider with ChangeNotifier {
       }
     }
 
-    final newStreak = _progress.streak + 1;
+    final yesterday = today.subtract(const Duration(days: 1));
+    final lastCompleted = _progress.lastSessionCompletedDate;
+    final int newStreak;
+    if (lastCompleted == null) {
+      newStreak = 1;
+    } else if (_isSameDay(lastCompleted, yesterday)) {
+      newStreak = _progress.streak + 1;
+    } else {
+      newStreak = 1;
+    }
+
     _progress = _progress.copyWith(
       streak: newStreak,
-      lastOpenDate: now,
+      lastOpenDate: today,
       lastSessionCompletedDate: today,
       completedDates: dates,
     );
