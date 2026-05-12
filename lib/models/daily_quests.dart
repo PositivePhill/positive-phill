@@ -36,6 +36,14 @@ enum QuestType {
   }
 }
 
+/// Returns [QuestType] for a persisted enum [name], or null if unknown.
+QuestType? questTypeFromName(String name) {
+  for (final t in QuestType.values) {
+    if (t.name == name) return t;
+  }
+  return null;
+}
+
 class DailyQuests {
   final String? date; // yyyy-MM-dd
   final Set<QuestType> completed;
@@ -69,12 +77,10 @@ class DailyQuests {
 
   factory DailyQuests.fromJson(Map<String, dynamic> json) => DailyQuests(
         date: json['date'] as String?,
-        completed: ((json['completed'] as List<dynamic>?)
-                    ?.map((e) => QuestType.values.firstWhere(
-                          (t) => t.name == e as String,
-                          orElse: () => QuestType.completeSession,
-                        ))
-                    .toSet()) ??
+        completed: ((json['completed'] as List<dynamic>?)?.map((e) {
+              if (e is! String) return null;
+              return questTypeFromName(e);
+            }).whereType<QuestType>().toSet()) ??
             {},
         bonusPaid: json['bonusPaid'] as bool? ?? false,
       );

@@ -128,8 +128,13 @@ class UserProvider with ChangeNotifier {
     if (!wasFavorite &&
         isNowFavorite &&
         !_sessionPaidIds.contains(affirmationId)) {
-      await addXp(10);
       _sessionPaidIds.add(affirmationId);
+      try {
+        await addXp(10);
+      } catch (e) {
+        _sessionPaidIds.remove(affirmationId);
+        debugPrint('toggleFavorite: addXp failed: $e');
+      }
     }
 
     _progress = _progress.copyWith(favorites: favorites);
