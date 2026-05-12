@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeProvider with ChangeNotifier {
@@ -12,33 +13,64 @@ class ThemeProvider with ChangeNotifier {
   }
 
   Future<void> _loadThemeMode() async {
+    ThemeMode resolved = ThemeMode.system;
+
     try {
       final prefs = await SharedPreferences.getInstance();
-      final modeIndex = prefs.getInt(_themeModeKey) ?? 0;
-      _themeMode = ThemeMode.values[modeIndex];
-      notifyListeners();
+      final Object? raw = prefs.get(_themeModeKey);
+
+      if (raw is String) {
+        if (raw == ThemeMode.light.name) {
+          resolved = ThemeMode.light;
+        } else if (raw == ThemeMode.dark.name) {
+          resolved = ThemeMode.dark;
+        } else {
+          resolved = ThemeMode.system;
+        }
+      } else if (raw is int) {
+        // 🔁 Legacy migration (old builds stored index)
+        if (raw == ThemeMode.light.index) {
+          resolved = ThemeMode.light;
+        } else if (raw == ThemeMode.dark.index) {
+          resolved = ThemeMode.dark;
+        } else {
+          resolved = ThemeMode.system;
+        }
+
+        // Persist migrated value as string
+        await prefs.setString(_themeModeKey, resolved.name);
+      } else {
+        resolved = ThemeMode.system;
+      }
     } catch (e) {
-      _themeMode = ThemeMode.system;
+      resolved = ThemeMode.system;
     }
+
+    _themeMode = resolved;
+    notifyListeners();
   }
+
 
   Future<void> setThemeMode(ThemeMode mode) async {
     _themeMode = mode;
     notifyListeners();
-    
+
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(_themeModeKey, mode.index);
+      await prefs.setString(_themeModeKey, mode.name);
     } catch (e) {
       // Fail silently
     }
   }
 
   void toggleTheme() {
-    if (_themeMode == ThemeMode.light) {
+    if (_themeMode == ThemeMode.dark) {
+      setThemeMode(ThemeMode.light);
+    } else if (_themeMode == ThemeMode.light) {
       setThemeMode(ThemeMode.dark);
     } else {
-      setThemeMode(ThemeMode.light);
+      final brightness = SchedulerBinding.instance.platformDispatcher.platformBrightness;
+      setThemeMode(brightness == Brightness.dark ? ThemeMode.light : ThemeMode.dark);
     }
   }
 }

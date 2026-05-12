@@ -1,8 +1,15 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:positive_phill/models/affirmation.dart';
+import 'package:positive_phill/providers/tts_provider.dart';
 import 'package:positive_phill/providers/user_provider.dart';
+import 'package:positive_phill/quest_helper.dart';
+import 'package:positive_phill/models/daily_quests.dart';
 import 'package:positive_phill/services/affirmations_service.dart';
 import 'package:positive_phill/platform/background_image.dart';
 import 'package:positive_phill/services/storage_service.dart';
@@ -10,12 +17,13 @@ import 'package:positive_phill/services/ads_service.dart';
 import 'package:positive_phill/services/haptics_service.dart';
 import 'package:positive_phill/theme.dart';
 import 'package:positive_phill/widgets/affirmation_card.dart';
-import 'package:positive_phill/widgets/celebration_animation.dart';
+import 'package:positive_phill/widgets/daily_fortune_card.dart';
+import 'package:positive_phill/widgets/daily_quest_card.dart';
+import 'package:positive_phill/widgets/level_up_toast.dart';
+import 'package:positive_phill/widgets/mood_bar.dart';
 import 'package:positive_phill/widgets/streak_display.dart';
+import 'package:positive_phill/widgets/streak_heatmap.dart';
 import 'package:positive_phill/widgets/xp_progress_bar.dart';
-import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
-
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -28,12 +36,22 @@ class _HomeScreenState extends State<HomeScreen> {
   final AffirmationsService _affirmationsService = AffirmationsService();
   final AdsService _adsService = AdsService();
   final PageController _pageController = PageController();
-  
+
   List<Affirmation> _currentPack = [];
   String _dailyTheme = '';
   AffirmationCategory? _selectedCategory;
-  bool _showCelebration = false;
   int _currentPage = 0;
+  bool _zenMode = false;
+  bool _readyForAutoRead = false;
+
+  // Debounce timer for auto-read on PageView swipes. Coalesces fast swipes
+  // and gives TtsProvider time to settle between page changes.
+  Timer? _autoReadDebounce;
+
+  // Mood state (local — persisted via StorageService)
+  DailyMood? _selectedMood;
+
+  ValueNotifier<int>? _levelUpNotifier;
 
   @override
   void initState() {
@@ -41,9 +59,44 @@ class _HomeScreenState extends State<HomeScreen> {
     _adsService.initialize();
     _adsService.loadRewardedAd();
     _adsService.loadInterstitialAd();
-    _loadDailyContent();
-    _loadCustomBackground();
+    unawaited(_loadDailyContent());
+    unawaited(_loadCustomBackground());
+    unawaited(_loadZenMode());
+    unawaited(_loadMood());
+    _listenForLevelUp();
   }
+
+  // ── Level-up toast ───────────────────────────────────────────────────────
+
+  void _listenForLevelUp() {
+    // Listen after the first frame so UserProvider is loaded
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final n = context.read<UserProvider>().levelUpNotifier;
+      _levelUpNotifier = n;
+      n.addListener(_onLevelUp);
+    });
+  }
+
+  void _onLevelUp() {
+    if (!mounted) return;
+    final level =
+        context.read<UserProvider>().levelUpNotifier.value;
+    if (level > 0) {
+      LevelUpToast.show(context, level);
+    }
+  }
+
+  @override
+  void dispose() {
+    _levelUpNotifier?.removeListener(_onLevelUp);
+    _autoReadDebounce?.cancel();
+    _pageController.dispose();
+    _adsService.dispose();
+    super.dispose();
+  }
+
+  // ── Background ───────────────────────────────────────────────────────────
 
   Future<void> _loadCustomBackground() async {
     final storage = StorageService();
@@ -57,47 +110,133 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  @override
-  void dispose() {
-    _pageController.dispose();
-    _adsService.dispose();
-    super.dispose();
+  // ── Zen mode ─────────────────────────────────────────────────────────────
+
+  Future<void> _loadZenMode() async {
+    final enabled = await StorageService().getZenModeEnabled();
+    if (mounted) setState(() => _zenMode = enabled);
   }
 
-  void _loadDailyContent() {
+  Future<void> _toggleZenMode() async {
+    HapticsService.feedback(FeedbackType.selection);
+    final next = !_zenMode;
+    setState(() => _zenMode = next);
+    await StorageService().setZenModeEnabled(next);
+    // Quest: entering focus mode
+    if (next && mounted) {
+      await completeQuest(context, QuestType.enteredFocusMode);
+    }
+  }
+
+  // ── Mood ─────────────────────────────────────────────────────────────────
+
+  static String _todayString() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _loadMood() async {
+    final storage = StorageService();
+    final savedDate = await storage.getDailyMoodDate();
+    final savedMood = await storage.getDailyMoodValue();
+    if (!mounted) return;
+    if (savedDate == _todayString() && savedMood != null) {
+      final mood = DailyMood.values.firstWhere(
+        (m) => m.name == savedMood,
+        orElse: () => DailyMood.hopeful,
+      );
+      setState(() => _selectedMood = mood);
+    }
+  }
+
+  Future<void> _onMoodSelected(DailyMood mood) async {
+    HapticsService.feedback(FeedbackType.selection);
+    setState(() => _selectedMood = mood);
+    await StorageService().setDailyMood(mood.name, _todayString());
+    // Change affirmation pack to match mood's suggested category
+    await _onCategoryChanged(mood.suggestedCategory);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Showing ${mood.suggestedCategory.displayName} affirmations for your mood'),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  // ── Affirmation content ───────────────────────────────────────────────────
+
+  Future<void> _loadDailyContent() async {
+    await AffirmationsService.preload();
     final seed = DateTime.now().millisecondsSinceEpoch;
+    final pack =
+        await _affirmationsService.getDailyPack(category: _selectedCategory);
+    if (!mounted) return;
     setState(() {
-      _dailyTheme = _affirmationsService.getRandomMessage(category: _selectedCategory, seed: seed);
-      _currentPack = _affirmationsService.getDailyPack(category: _selectedCategory);
+      _dailyTheme = _affirmationsService.getRandomMessage(
+          category: _selectedCategory, seed: seed);
+      _currentPack = pack;
     });
+    setState(() => _readyForAutoRead = true);
   }
 
-  void _onCategoryChanged(AffirmationCategory? category) {
+  Future<void> _onCategoryChanged(AffirmationCategory? category) async {
+    // Cancel any pending auto-read so the previous pack's text doesn't speak.
+    _autoReadDebounce?.cancel();
+    setState(() => _readyForAutoRead = false);
     final seed = DateTime.now().millisecondsSinceEpoch;
+    final pack = await _affirmationsService.getRandomPack(
+        category: category, count: 5, seed: seed);
+    if (!mounted) return;
     setState(() {
       _selectedCategory = category;
-      _dailyTheme = _affirmationsService.getRandomMessage(category: category, seed: seed);
-      _currentPack = _affirmationsService.getRandomPack(category: category, count: 5, seed: seed);
+      _dailyTheme = _affirmationsService.getRandomMessage(
+          category: category, seed: seed);
+      _currentPack = pack;
       _currentPage = 0;
     });
     _pageController.jumpToPage(0);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _readyForAutoRead = true);
+    });
   }
+
+  void _onPageChanged(int index) {
+    setState(() => _currentPage = index);
+
+    // Always cancel any pending auto-read; fast swipes coalesce to last page.
+    _autoReadDebounce?.cancel();
+
+    if (!_readyForAutoRead || _currentPack.isEmpty) return;
+    final tts = context.read<TtsProvider>();
+    if (!tts.autoRead || !tts.voiceEnabled) return;
+
+    // Debounce so the previous TTS cancel callback has time to flush before
+    // we issue a new speak() — fixes auto-read missing on rapid swipes.
+    _autoReadDebounce =
+        Timer(const Duration(milliseconds: 180), () {
+      if (!mounted) return;
+      if (index < 0 || index >= _currentPack.length) return;
+      unawaited(tts.speak(_currentPack[index].text));
+    });
+  }
+
+  // ── Ads / extra packs ─────────────────────────────────────────────────────
 
   Future<void> _onGetMore() async {
     HapticsService.feedback(FeedbackType.selection);
-    
     final userProvider = context.read<UserProvider>();
-    
     if (_adsService.isRewardedAdReady) {
       final success = await _adsService.showRewardedAd((amount) {
         _loadExtraPack();
         _showSnackBar('🎉 Unlocked 5 more affirmations!');
       });
-      
       if (!success) {
         _checkFreeExtraPack(userProvider);
       }
-      
       _adsService.loadRewardedAd();
     } else {
       _checkFreeExtraPack(userProvider);
@@ -114,9 +253,11 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _loadExtraPack() {
+  Future<void> _loadExtraPack() async {
+    final extraPack =
+        await _affirmationsService.getExtraPack(category: _selectedCategory);
+    if (!mounted) return;
     setState(() {
-      final extraPack = _affirmationsService.getExtraPack(category: _selectedCategory);
       _currentPack.addAll(extraPack);
       _pageController.animateToPage(
         _currentPack.length - 5,
@@ -136,11 +277,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ── Build ─────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final userProvider = context.watch<UserProvider>();
+    final completedDates = userProvider.progress.completedDates;
 
     if (userProvider.isLoading) {
       return const Scaffold(
@@ -148,10 +292,8 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    return CelebrationAnimation(
-      trigger: _showCelebration,
-      child: Scaffold(
-        body: AnimatedBuilder(
+    return Scaffold(
+      body: AnimatedBuilder(
           animation: Listenable.merge([
             StorageService.customBackgroundPath,
             StorageService.customBackgroundWeb,
@@ -163,7 +305,9 @@ class _HomeScreenState extends State<HomeScreen> {
             final bgWeb = StorageService.customBackgroundWeb.value;
             final align = StorageService.customBackgroundAlignment.value;
             final textBacklight = StorageService.textBacklightEnabled.value;
-            Widget bgWidget = ColoredBox(color: Theme.of(context).scaffoldBackgroundColor);
+
+            Widget bgWidget = ColoredBox(
+                color: Theme.of(context).scaffoldBackgroundColor);
             bool hasCustomBg = false;
             if (kIsWeb) {
               if (bgWeb != null && bgWeb.isNotEmpty) {
@@ -179,31 +323,45 @@ class _HomeScreenState extends State<HomeScreen> {
                   hasCustomBg = true;
                 } catch (_) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
-                    StorageService().setCustomBackgroundWeb(null);
+                    unawaited(StorageService().setCustomBackgroundWeb(null));
                   });
                 }
               }
             } else {
               if (bgPath != null && bgPath.isNotEmpty) {
-                bgWidget = BackgroundImageBuilder.build(bgPath, alignment: align);
+                bgWidget =
+                    BackgroundImageBuilder.build(bgPath, alignment: align);
                 hasCustomBg = true;
               }
             }
+
             final textBacklightShadows = textBacklight
                 ? [
                     Shadow(
-                      color: Colors.black.withOpacity(0.6),
+                      color: Colors.black.withValues(alpha: 0.6),
                       offset: const Offset(1, 1),
                       blurRadius: 4,
                     ),
                   ]
                 : null;
+
             return Stack(
               children: [
                 Positioned.fill(child: bgWidget),
                 if (hasCustomBg)
                   Positioned.fill(
-                    child: Container(color: Colors.black.withOpacity(0.6)),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.5),
+                            Colors.black.withValues(alpha: 0.72),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 SafeArea(
                   child: LayoutBuilder(
@@ -220,168 +378,348 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: ConstrainedBox(
                           constraints: BoxConstraints(maxWidth: lane),
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 16),
                             child: SingleChildScrollView(
                               child: Padding(
-                                padding: const EdgeInsets.all(AppSpacing.lg),
+                                padding:
+                                    const EdgeInsets.all(AppSpacing.lg),
                                 child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Center(
-                          child: Text(
-                            'Positive Phill',
-                            style: textTheme.headlineMedium?.copyWith(
-                              color: colorScheme.primary,
-                              fontWeight: FontWeight.bold,
-                              shadows: textBacklightShadows,
-                            ),
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => context.push('/settings'),
-                        icon: Icon(Icons.settings, color: colorScheme.onSurface),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  XpProgressBar(progress: userProvider.progress),
-                  const SizedBox(height: AppSpacing.md),
-                  Center(child: StreakDisplay(streak: userProvider.progress.streak)),
-                  const SizedBox(height: AppSpacing.xl),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: colorScheme.secondaryContainer,
-                      borderRadius: BorderRadius.circular(AppRadius.lg),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text('💭', style: const TextStyle(fontSize: 28)),
-                        const SizedBox(height: AppSpacing.sm),
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 300),
-                          child: Text(
-                            key: ValueKey(_dailyTheme),
-                            _dailyTheme,
-                            textAlign: TextAlign.center,
-                            style: textTheme.titleMedium?.copyWith(
-                              color: colorScheme.onSecondaryContainer,
-                              fontStyle: FontStyle.italic,
-                              shadows: textBacklightShadows,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Center(
-                    child: Text(
-                      'Today\'s Affirmations',
-                      style: textTheme.titleLarge?.copyWith(
-                        color: colorScheme.onSurface,
-                        fontWeight: FontWeight.bold,
-                        shadows: textBacklightShadows,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  CategorySelector(
-                    selectedCategory: _selectedCategory,
-                    onCategoryChanged: _onCategoryChanged,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  SizedBox(
-                    height: 280,
-                    child: _currentPack.isEmpty
-                        ? Center(
-                            child: Text(
-                              'No affirmations available',
-                              style: textTheme.bodyMedium,
-                            ),
-                          )
-                        : PageView.builder(
-                            controller: _pageController,
-                            itemCount: _currentPack.length,
-                            onPageChanged: (index) {
-                              setState(() => _currentPage = index);
-                            },
-                            itemBuilder: (context, index) {
-                              return AffirmationCard(
-                                affirmation: _currentPack[index],
-                                textBacklightEnabled: textBacklight,
-                              );
-                            },
-                          ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Center(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(
-                        _currentPack.length > 10 ? 10 : _currentPack.length,
-                        (index) => Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 4),
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: _currentPage == index
-                                ? colorScheme.primary
-                                : colorScheme.outline.withValues(alpha: 0.3),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: _onGetMore,
-                      icon: Icon(Icons.add_circle_outline, color: colorScheme.onPrimary),
-                      label: Text('Get More Affirmations', style: TextStyle(color: colorScheme.onPrimary)),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                        backgroundColor: colorScheme.primary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: () => context.push('/session'),
-                      icon: Icon(Icons.spa, color: colorScheme.onSecondary),
-                      label: Text('Start Daily Session', style: TextStyle(color: colorScheme.onSecondary)),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                        backgroundColor: colorScheme.secondary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () => context.push('/webview'),
-                      icon: Icon(Icons.games, color: colorScheme.primary),
-                      label: Text('Play YouImageFlip', style: TextStyle(color: colorScheme.primary)),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                        side: BorderSide(color: colorScheme.primary),
-                      ),
-                    ),
-                  ),
-                ],
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    // ── 1. Header ─────────────────────
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Center(
+                                            child: FittedBox(
+                                              fit: BoxFit.scaleDown,
+                                              alignment: Alignment.center,
+                                              child: Text(
+                                                'Positive Phill',
+                                                maxLines: 1,
+                                                softWrap: false,
+                                                overflow:
+                                                    TextOverflow.visible,
+                                                style: textTheme
+                                                    .headlineMedium
+                                                    ?.copyWith(
+                                                  color:
+                                                      colorScheme.primary,
+                                                  fontWeight:
+                                                      FontWeight.bold,
+                                                  shadows:
+                                                      textBacklightShadows,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        IconButton(
+                                          onPressed: () =>
+                                              context.push('/favorites'),
+                                          icon: Icon(
+                                              Icons.favorite_border,
+                                              color:
+                                                  colorScheme.onSurface),
+                                          tooltip: 'Saved Affirmations',
+                                        ),
+                                        IconButton(
+                                          onPressed: _toggleZenMode,
+                                          icon: Icon(
+                                            _zenMode
+                                                ? Icons.self_improvement
+                                                : Icons
+                                                    .self_improvement_outlined,
+                                            color: _zenMode
+                                                ? colorScheme.primary
+                                                : colorScheme.onSurface,
+                                          ),
+                                          tooltip: _zenMode
+                                              ? 'Exit Focus Mode'
+                                              : 'Enter Focus Mode',
+                                        ),
+                                        IconButton(
+                                          onPressed: () =>
+                                              context.push('/settings'),
+                                          icon: Icon(Icons.settings,
+                                              color:
+                                                  colorScheme.onSurface),
+                                          tooltip: 'Settings',
+                                        ),
+                                      ],
+                                    ),
+
+                                    // ── 2. XP + Streak (hidden in zen) ─
+                                    if (!_zenMode) ...[
+                                      const SizedBox(
+                                          height: AppSpacing.md),
+                                      XpProgressBar(
+                                          progress: userProvider.progress),
+                                      const SizedBox(
+                                          height: AppSpacing.md),
+                                      Center(
+                                        child: StreakDisplay(
+                                            streak: userProvider
+                                                .progress.streak),
+                                      ),
+                                    ],
+
+                                    // ── 3. Mood bar (hidden in zen) ─────
+                                    if (!_zenMode) ...[
+                                      const SizedBox(
+                                          height: AppSpacing.lg),
+                                      MoodBar(
+                                        selectedMood: _selectedMood,
+                                        onMoodSelected: _onMoodSelected,
+                                        textShadows: textBacklightShadows,
+                                      ),
+                                    ],
+
+                                    // ── 4. Daily fortune (hidden in zen) ─
+                                    if (!_zenMode) ...[
+                                      const SizedBox(
+                                          height: AppSpacing.md),
+                                      const DailyFortuneCard(),
+                                    ],
+
+                                    // ── 5. Daily theme quote ─────────────
+                                    const SizedBox(height: AppSpacing.md),
+                                    Container(
+                                      width: double.infinity,
+                                      padding:
+                                          const EdgeInsets.symmetric(
+                                              vertical: 24,
+                                              horizontal: 16),
+                                      decoration: BoxDecoration(
+                                        color: colorScheme
+                                            .secondaryContainer,
+                                        borderRadius:
+                                            BorderRadius.circular(
+                                                AppRadius.lg),
+                                      ),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                        children: [
+                                          const Text('💭',
+                                              style: TextStyle(
+                                                  fontSize: 28)),
+                                          const SizedBox(
+                                              height: AppSpacing.sm),
+                                          AnimatedSwitcher(
+                                            duration: const Duration(
+                                                milliseconds: 300),
+                                            child: Text(
+                                              key: ValueKey(_dailyTheme),
+                                              _dailyTheme,
+                                              textAlign: TextAlign.center,
+                                              style: textTheme.titleMedium
+                                                  ?.copyWith(
+                                                color: colorScheme
+                                                    .onSecondaryContainer,
+                                                fontStyle: FontStyle.italic,
+                                                shadows:
+                                                    textBacklightShadows,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    // ── 6. Category chips (hidden in zen) ─
+                                    if (!_zenMode) ...[
+                                      const SizedBox(
+                                          height: AppSpacing.lg),
+                                      Center(
+                                        child: Text(
+                                          "Today's Affirmations",
+                                          style:
+                                              textTheme.titleLarge?.copyWith(
+                                            color: colorScheme.onSurface,
+                                            fontWeight: FontWeight.bold,
+                                            shadows: textBacklightShadows,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(
+                                          height: AppSpacing.sm),
+                                      CategorySelector(
+                                        selectedCategory: _selectedCategory,
+                                        onCategoryChanged:
+                                            _onCategoryChanged,
+                                      ),
+                                    ] else ...[
+                                      const SizedBox(
+                                          height: AppSpacing.lg),
+                                    ],
+
+                                    // ── 7. Affirmation deck ───────────────
+                                    const SizedBox(height: AppSpacing.md),
+                                    SizedBox(
+                                      height: 300,
+                                      child: _currentPack.isEmpty
+                                          ? Center(
+                                              child: Text(
+                                                'No affirmations available',
+                                                style:
+                                                    textTheme.bodyMedium,
+                                              ),
+                                            )
+                                          : PageView.builder(
+                                              controller: _pageController,
+                                              itemCount:
+                                                  _currentPack.length,
+                                              onPageChanged: _onPageChanged,
+                                              itemBuilder: (context, index) {
+                                                return AffirmationCard(
+                                                  affirmation:
+                                                      _currentPack[index],
+                                                  textBacklightEnabled:
+                                                      textBacklight,
+                                                );
+                                              },
+                                            ),
+                                    ),
+
+                                    // ── Page dots ────────────────────────
+                                    const SizedBox(height: AppSpacing.sm),
+                                    Center(
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: List.generate(
+                                          _currentPack.length > 10
+                                              ? 10
+                                              : _currentPack.length,
+                                          (i) => Container(
+                                            margin:
+                                                const EdgeInsets.symmetric(
+                                                    horizontal: 4),
+                                            width: 8,
+                                            height: 8,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: _currentPage == i
+                                                  ? colorScheme.primary
+                                                  : colorScheme.outline
+                                                      .withValues(
+                                                          alpha: 0.3),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+
+                                    // ── 8. Daily quests (hidden in zen) ──
+                                    if (!_zenMode) ...[
+                                      const SizedBox(
+                                          height: AppSpacing.xl),
+                                      const DailyQuestCard(),
+                                    ],
+
+                                    // ── 9. Streak heatmap (hidden in zen) ─
+                                    if (!_zenMode) ...[
+                                      const SizedBox(
+                                          height: AppSpacing.lg),
+                                      StreakHeatmap(
+                                          completedDates: completedDates),
+                                    ],
+
+                                    // ── 10. CTA buttons (hidden in zen) ──
+                                    if (!_zenMode) ...[
+                                      const SizedBox(
+                                          height: AppSpacing.xl),
+                                      // Primary CTA
+                                      FilledButton.icon(
+                                        onPressed: _onGetMore,
+                                        icon: const Icon(
+                                            Icons.add_circle_outline),
+                                        label: const Text(
+                                            'Get More Affirmations'),
+                                        style: FilledButton.styleFrom(
+                                          minimumSize:
+                                              const Size.fromHeight(52),
+                                          backgroundColor:
+                                              colorScheme.primary,
+                                          foregroundColor:
+                                              colorScheme.onPrimary,
+                                          textStyle: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(
+                                                    AppRadius.md),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: AppSpacing.sm),
+                                      // Secondary CTA
+                                      FilledButton.icon(
+                                        onPressed: () =>
+                                            context.push('/session'),
+                                        icon: const Icon(Icons.spa),
+                                        label: const Text(
+                                            'Start Daily Session'),
+                                        style: FilledButton.styleFrom(
+                                          minimumSize:
+                                              const Size.fromHeight(52),
+                                          backgroundColor:
+                                              colorScheme.secondary,
+                                          foregroundColor:
+                                              colorScheme.onSecondary,
+                                          textStyle: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(
+                                                    AppRadius.md),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: AppSpacing.sm),
+                                      // Tertiary outlined CTA
+                                      OutlinedButton.icon(
+                                        onPressed: () =>
+                                            context.push('/webview'),
+                                        icon: const Icon(Icons.games),
+                                        label:
+                                            const Text('Play YouImageFlip'),
+                                        style: OutlinedButton.styleFrom(
+                                          minimumSize:
+                                              const Size.fromHeight(52),
+                                          foregroundColor:
+                                              colorScheme.primary,
+                                          textStyle: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          side: BorderSide(
+                                            color: colorScheme.primary
+                                                .withValues(alpha: 0.6),
+                                            width: 1.25,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(
+                                                    AppRadius.md),
+                                          ),
+                                        ),
+                                      ),
+                                    ] else ...[
+                                      const SizedBox(
+                                          height: AppSpacing.xl),
+                                    ],
+                                  ],
                                 ),
                               ),
                             ),
@@ -391,18 +729,40 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                   ),
                 ),
+                // ── Zen exit FAB ─────────────────────────────────────
+                if (_zenMode)
+                  Positioned(
+                    bottom: 32,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: SafeArea(
+                        child: FloatingActionButton.extended(
+                          onPressed: _toggleZenMode,
+                          backgroundColor:
+                              colorScheme.primaryContainer,
+                          foregroundColor:
+                              colorScheme.onPrimaryContainer,
+                          icon: const Icon(Icons.close, size: 18),
+                          label: const Text('Exit Focus'),
+                          elevation: 4,
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             );
           },
         ),
-      ),
     );
   }
 }
 
+// ── CategorySelector ──────────────────────────────────────────────────────────
+
 class CategorySelector extends StatelessWidget {
   final AffirmationCategory? selectedCategory;
-  final Function(AffirmationCategory?) onCategoryChanged;
+  final Future<void> Function(AffirmationCategory?) onCategoryChanged;
 
   const CategorySelector({
     super.key,
@@ -421,9 +781,23 @@ class CategorySelector extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(right: AppSpacing.sm),
             child: FilterChip(
-              label: Text('All', style: TextStyle(
-                color: selectedCategory == null ? colorScheme.onSecondaryContainer : colorScheme.onSurface,
-              )),
+              label: Text(
+                'All',
+                style: TextStyle(
+                  color: selectedCategory == null
+                      ? colorScheme.onSecondaryContainer
+                      : colorScheme.onSurface,
+                  fontWeight: selectedCategory == null
+                      ? FontWeight.w600
+                      : FontWeight.w500,
+                ),
+                softWrap: false,
+                overflow: TextOverflow.visible,
+              ),
+              labelPadding:
+                  const EdgeInsets.symmetric(horizontal: 8),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 8, vertical: 4),
               selected: selectedCategory == null,
               onSelected: (_) => onCategoryChanged(null),
               backgroundColor: colorScheme.surface,
@@ -435,17 +809,23 @@ class CategorySelector extends StatelessWidget {
             return Padding(
               padding: const EdgeInsets.only(right: AppSpacing.sm),
               child: FilterChip(
-                label: Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(text: '${category.emoji} '),
-                      TextSpan(text: category.displayName),
-                    ],
-                    style: TextStyle(
-                      color: isSelected ? colorScheme.onSecondaryContainer : colorScheme.onSurface,
-                    ),
+                label: Text(
+                  '${category.emoji} ${category.displayName}',
+                  style: TextStyle(
+                    color: isSelected
+                        ? colorScheme.onSecondaryContainer
+                        : colorScheme.onSurface,
+                    fontWeight: isSelected
+                        ? FontWeight.w600
+                        : FontWeight.w500,
                   ),
+                  softWrap: false,
+                  overflow: TextOverflow.visible,
                 ),
+                labelPadding:
+                    const EdgeInsets.symmetric(horizontal: 8),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 4),
                 selected: isSelected,
                 onSelected: (_) => onCategoryChanged(category),
                 backgroundColor: colorScheme.surface,

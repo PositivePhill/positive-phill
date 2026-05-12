@@ -13,6 +13,15 @@ class StorageService {
   static const String _customBgAlignXKey = 'custom_bg_align_x';
   static const String _customBgAlignYKey = 'custom_bg_align_y';
   static const String _textBacklightEnabledKey = 'text_backlight_enabled';
+  static const String _ttsEnabledKey = 'tts_enabled';
+  static const String _ttsSpeechRateKey = 'tts_speech_rate';
+  static const String _ttsPitchKey = 'tts_pitch';
+  static const String _ttsAutoReadKey = 'tts_auto_read';
+  static const String _ttsVoiceNameKey = 'tts_voice_name';
+  static const String _zenModeEnabledKey = 'zen_mode_enabled';
+  static const String _dailyMoodValueKey = 'daily_mood_value';
+  static const String _dailyMoodDateKey = 'daily_mood_date';
+  static const String _dailyQuestsKey = 'daily_quests';
 
   static final ValueNotifier<String?> customBackgroundPath = ValueNotifier<String?>(null);
   static final ValueNotifier<String?> customBackgroundWeb = ValueNotifier<String?>(null);
@@ -50,6 +59,9 @@ class StorageService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_userProgressKey);
+      await prefs.remove(_dailyMoodValueKey);
+      await prefs.remove(_dailyMoodDateKey);
+      await prefs.remove(_dailyQuestsKey);
     } catch (e) {
       debugPrint('Failed to reset progress: $e');
     }
@@ -203,6 +215,196 @@ class StorageService {
       textBacklightEnabled.value = enabled;
     } catch (e) {
       debugPrint('Failed to save text backlight: $e');
+    }
+  }
+
+  Future<bool> getTtsEnabled() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(_ttsEnabledKey) ?? true;
+    } catch (e) {
+      debugPrint('Failed to load tts enabled: $e');
+      return true;
+    }
+  }
+
+  Future<void> setTtsEnabled(bool value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_ttsEnabledKey, value);
+    } catch (e) {
+      debugPrint('Failed to save tts enabled: $e');
+    }
+  }
+
+  Future<double> getTtsSpeechRate() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getDouble(_ttsSpeechRateKey) ?? 0.5;
+    } catch (e) {
+      debugPrint('Failed to load tts speech rate: $e');
+      return 0.5;
+    }
+  }
+
+  Future<void> setTtsSpeechRate(double value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(_ttsSpeechRateKey, value);
+    } catch (e) {
+      debugPrint('Failed to save tts speech rate: $e');
+    }
+  }
+
+  Future<double> getTtsPitch() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getDouble(_ttsPitchKey) ?? 1.0;
+    } catch (e) {
+      debugPrint('Failed to load tts pitch: $e');
+      return 1.0;
+    }
+  }
+
+  Future<void> setTtsPitch(double value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(_ttsPitchKey, value);
+    } catch (e) {
+      debugPrint('Failed to save tts pitch: $e');
+    }
+  }
+
+  Future<bool> getTtsAutoRead() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(_ttsAutoReadKey) ?? false;
+    } catch (e) {
+      debugPrint('Failed to load tts auto read: $e');
+      return false;
+    }
+  }
+
+  Future<void> setTtsAutoRead(bool value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_ttsAutoReadKey, value);
+    } catch (e) {
+      debugPrint('Failed to save tts auto read: $e');
+    }
+  }
+
+  Future<String?> getTtsVoiceName() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_ttsVoiceNameKey);
+    } catch (e) {
+      debugPrint('Failed to load tts voice name: $e');
+      return null;
+    }
+  }
+
+  Future<void> setTtsVoiceName(String? value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (value == null) {
+        await prefs.remove(_ttsVoiceNameKey);
+      } else {
+        await prefs.setString(_ttsVoiceNameKey, value);
+      }
+    } catch (e) {
+      debugPrint('Failed to save tts voice name: $e');
+    }
+  }
+
+  Future<bool> getZenModeEnabled() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(_zenModeEnabledKey) ?? false;
+    } catch (e) {
+      debugPrint('Failed to load zen mode: $e');
+      return false;
+    }
+  }
+
+  Future<void> setZenModeEnabled(bool value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_zenModeEnabledKey, value);
+    } catch (e) {
+      debugPrint('Failed to save zen mode: $e');
+    }
+  }
+
+  // ── Mood ──────────────────────────────────────────────────────────────────
+
+  Future<String?> getDailyMoodValue() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_dailyMoodValueKey);
+    } catch (e) {
+      debugPrint('Failed to load daily mood value: $e');
+      return null;
+    }
+  }
+
+  Future<String?> getDailyMoodDate() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_dailyMoodDateKey);
+    } catch (e) {
+      debugPrint('Failed to load daily mood date: $e');
+      return null;
+    }
+  }
+
+  Future<void> setDailyMood(String moodName, String dateString) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_dailyMoodValueKey, moodName);
+      await prefs.setString(_dailyMoodDateKey, dateString);
+    } catch (e) {
+      debugPrint('Failed to save daily mood: $e');
+    }
+  }
+
+  Future<void> clearDailyMood() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_dailyMoodValueKey);
+      await prefs.remove(_dailyMoodDateKey);
+    } catch (e) {
+      debugPrint('Failed to clear daily mood: $e');
+    }
+  }
+
+  // ── Quests ────────────────────────────────────────────────────────────────
+
+  Future<String?> getDailyQuestsJson() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_dailyQuestsKey);
+    } catch (e) {
+      debugPrint('Failed to load daily quests: $e');
+      return null;
+    }
+  }
+
+  Future<void> setDailyQuestsJson(String json) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_dailyQuestsKey, json);
+    } catch (e) {
+      debugPrint('Failed to save daily quests: $e');
+    }
+  }
+
+  Future<void> clearDailyQuests() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_dailyQuestsKey);
+    } catch (e) {
+      debugPrint('Failed to clear daily quests: $e');
     }
   }
 

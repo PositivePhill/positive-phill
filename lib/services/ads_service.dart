@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -81,17 +83,53 @@ class AdsService {
     if (kIsWeb) return false;
     if (!_isRewardedAdReady || _rewardedAd == null) return false;
 
-    bool rewardEarned = false;
-    
-    _rewardedAd?.show(
-      onUserEarnedReward: (ad, reward) {
-        onUserEarnedReward(reward.amount.toInt());
-        rewardEarned = true;
+    final ad = _rewardedAd!;
+    final completer = Completer<bool>();
+    var rewardReported = false;
+
+    ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (dismissed) {
+        dismissed.dispose();
+        _isRewardedAdReady = false;
+        loadRewardedAd();
+        if (!completer.isCompleted) {
+          completer.complete(rewardReported);
+        }
+      },
+      onAdFailedToShowFullScreenContent: (failed, error) {
+        debugPrint('Rewarded ad failed to show: $error');
+        failed.dispose();
+        _isRewardedAdReady = false;
+        loadRewardedAd();
+        if (!completer.isCompleted) {
+          completer.complete(false);
+        }
       },
     );
 
     _isRewardedAdReady = false;
-    return rewardEarned;
+
+    try {
+      await ad.show(
+        onUserEarnedReward: (_, reward) {
+          rewardReported = true;
+          onUserEarnedReward(reward.amount.toInt());
+          if (!completer.isCompleted) {
+            completer.complete(true);
+          }
+        },
+      );
+    } catch (e) {
+      debugPrint('Rewarded ad show error: $e');
+      if (!completer.isCompleted) {
+        completer.complete(false);
+      }
+      _isRewardedAdReady = false;
+      loadRewardedAd();
+      return false;
+    }
+
+    return completer.future;
   }
 
   void loadInterstitialAd() {

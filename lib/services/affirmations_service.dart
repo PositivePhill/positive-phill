@@ -1,7 +1,52 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:positive_phill/models/affirmation.dart';
 
 class AffirmationsService {
-  static final List<Affirmation> _allAffirmations = [
+  static const List<String> _packAssetPaths = [
+    'assets/affirmations/core.json',
+    'assets/affirmations/developer_zen.json',
+    'assets/affirmations/sleep_wind_down.json',
+    'assets/affirmations/morning_energy.json',
+  ];
+
+  static List<Affirmation>? _jsonAffirmations;
+  static Future<void>? _preloadFuture;
+
+  /// Loads bundled JSON packs once. Safe to call multiple times. On failure, [effectiveAll] uses fallback.
+  static Future<void> preload() {
+    _preloadFuture ??= _loadJsonPacksOnce();
+    return _preloadFuture!;
+  }
+
+  static Future<void> _loadJsonPacksOnce() async {
+    if (_jsonAffirmations != null) return;
+    try {
+      final merged = <Affirmation>[];
+      final seen = <String>{};
+      for (final path in _packAssetPaths) {
+        final raw = await rootBundle.loadString(path);
+        final root = jsonDecode(raw) as Map<String, dynamic>;
+        final items = root['affirmations'] as List<dynamic>;
+        for (final item in items) {
+          final a = Affirmation.fromJson(item as Map<String, dynamic>);
+          if (seen.add(a.id)) {
+            merged.add(a);
+          }
+        }
+      }
+      _jsonAffirmations = merged;
+    } catch (e, st) {
+      debugPrint('Affirmations JSON load failed, using fallback list: $e\n$st');
+      _jsonAffirmations = null;
+    }
+  }
+
+  static List<Affirmation> get _effectiveAll => _jsonAffirmations ?? _fallbackAffirmations;
+
+  static final List<Affirmation> _fallbackAffirmations = [
     // Confidence affirmations
     const Affirmation(id: 'conf_1', text: 'I am confident in my abilities and trust in my decisions.', categories: [AffirmationCategory.confidence]),
     const Affirmation(id: 'conf_2', text: 'I radiate self-assurance and inspire others with my presence.', categories: [AffirmationCategory.confidence]),
@@ -120,10 +165,11 @@ class AffirmationsService {
     return messages[random.nextInt(messages.length)];
   }
 
-  List<Affirmation> getRandomPack({AffirmationCategory? category, int count = 8, int? seed}) {
+  Future<List<Affirmation>> getRandomPack({AffirmationCategory? category, int count = 8, int? seed}) async {
+    await preload();
     final pool = category != null
-        ? _allAffirmations.where((a) => a.categories.contains(category)).toList()
-        : List<Affirmation>.from(_allAffirmations);
+        ? _effectiveAll.where((a) => a.categories.contains(category)).toList()
+        : List<Affirmation>.from(_effectiveAll);
     final effectiveSeed = seed ?? DateTime.now().millisecondsSinceEpoch;
     return _getShuffledPack(pool, effectiveSeed, count);
   }
@@ -134,60 +180,76 @@ class AffirmationsService {
     return _dailyThemes[daysSinceEpoch % _dailyThemes.length];
   }
 
-  List<Affirmation> getDailyPack({AffirmationCategory? category}) {
+  Future<List<Affirmation>> getDailyPack({AffirmationCategory? category}) async {
+    await preload();
     final now = DateTime.now();
     final seed = now.year * 10000 + now.month * 100 + now.day;
-    
+
     final pool = category != null
-        ? _allAffirmations.where((a) => a.categories.contains(category)).toList()
-        : _allAffirmations;
-    
+        ? _effectiveAll.where((a) => a.categories.contains(category)).toList()
+        : _effectiveAll;
+
     return _getShuffledPack(pool, seed, 5);
   }
 
-  List<Affirmation> getExtraPack({AffirmationCategory? category}) {
+  Future<List<Affirmation>> getExtraPack({AffirmationCategory? category}) async {
+    await preload();
     final now = DateTime.now();
     final seed = now.millisecondsSinceEpoch;
-    
+
     final pool = category != null
-        ? _allAffirmations.where((a) => a.categories.contains(category)).toList()
-        : _allAffirmations;
-    
+        ? _effectiveAll.where((a) => a.categories.contains(category)).toList()
+        : _effectiveAll;
+
     return _getShuffledPack(pool, seed, 5);
   }
 
-  List<Affirmation> getSessionPack(AffirmationCategory category) {
+  Future<List<Affirmation>> getSessionPack(AffirmationCategory category) async {
+    await preload();
     final now = DateTime.now();
     final seed = now.millisecondsSinceEpoch;
-    final pool = _allAffirmations.where((a) => a.categories.contains(category)).toList();
+    final pool = _effectiveAll.where((a) => a.categories.contains(category)).toList();
     return _getShuffledPack(pool, seed, 5);
   }
 
   /// Builds a session pack using affirmations from any of the provided categories.
   /// If the list is empty, falls back to the full pool.
-  List<Affirmation> getSessionPackForCategories(List<AffirmationCategory> categories) {
+  Future<List<Affirmation>> getSessionPackForCategories(List<AffirmationCategory> categories) async {
+    await preload();
     final now = DateTime.now();
     final seed = now.millisecondsSinceEpoch;
     List<Affirmation> pool;
     if (categories.isEmpty) {
-      pool = List.from(_allAffirmations);
+      pool = List.from(_effectiveAll);
     } else {
       final set = categories.toSet();
-      pool = _allAffirmations.where((a) => a.categories.any(set.contains)).toList();
+      pool = _effectiveAll.where((a) => a.categories.any(set.contains)).toList();
     }
     return _getShuffledPack(pool, seed, 5);
   }
 
-  List<Affirmation> searchAffirmations(String query) {
+  Future<List<Affirmation>> searchAffirmations(String query) async {
+    await preload();
     if (query.isEmpty) return [];
     final lowerQuery = query.toLowerCase();
-    return _allAffirmations
+    return _effectiveAll
         .where((a) => a.text.toLowerCase().contains(lowerQuery))
         .toList();
   }
 
-  List<Affirmation> getAffirmationsByCategory(AffirmationCategory category) =>
-      _allAffirmations.where((a) => a.categories.contains(category)).toList();
+  Future<List<Affirmation>> getAffirmationsByCategory(AffirmationCategory category) async {
+    await preload();
+    return _effectiveAll.where((a) => a.categories.contains(category)).toList();
+  }
+
+  Future<Affirmation?> getById(String id) async {
+    await preload();
+    try {
+      return _effectiveAll.firstWhere((a) => a.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
 
   List<Affirmation> _getShuffledPack(List<Affirmation> pool, int seed, int count) {
     if (pool.isEmpty) return [];

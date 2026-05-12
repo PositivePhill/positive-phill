@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:positive_phill/screens/favorites_screen.dart';
 import 'package:positive_phill/screens/home_screen.dart';
 import 'package:positive_phill/screens/session_flow_screen.dart';
 import 'package:positive_phill/screens/settings_screen.dart';
@@ -37,6 +38,13 @@ class AppRouter {
           child: const WebViewScreen(),
         ),
       ),
+      GoRoute(
+        path: AppRoutes.favorites,
+        name: 'favorites',
+        pageBuilder: (context, state) => MaterialPage(
+          child: const FavoritesScreen(),
+        ),
+      ),
     ],
   );
 }
@@ -46,4 +54,5 @@ class AppRoutes {
   static const String session = '/session';
   static const String settings = '/settings';
   static const String webview = '/webview';
+  static const String favorites = '/favorites';
 }

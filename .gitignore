@@ -35,3 +35,9 @@ web/build/
 
 # Logs
 *.log
+
+#generated files
+.cursorrules
+
+# Generated Flutter web/app output
+app/
