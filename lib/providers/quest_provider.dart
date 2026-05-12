@@ -9,12 +9,15 @@ class QuestProvider with ChangeNotifier {
   DailyQuests _quests = const DailyQuests();
   bool _loaded = false;
 
+  /// All mutations await this so they never run against partially-loaded state.
+  late final Future<void> _loadFuture = _load();
+
+  /// Incremented when [markCompleted] / [reset] mutates after load started; a
+  /// late [_load] completion must not overwrite that newer in-memory state.
+  int _mutationGeneration = 0;
+
   DailyQuests get quests => _quests;
   bool get isLoaded => _loaded;
-
-  QuestProvider() {
-    _load();
-  }
 
   static String _todayString() {
     final now = DateTime.now();
@@ -22,21 +25,30 @@ class QuestProvider with ChangeNotifier {
   }
 
   Future<void> _load() async {
+    final loadStartedGen = _mutationGeneration;
+    DailyQuests next;
     try {
       final raw = await _storage.getDailyQuestsJson();
       if (raw != null) {
         final loaded = DailyQuests.fromJson(jsonDecode(raw) as Map<String, dynamic>);
         // Reset state if the stored date is not today
-        _quests = loaded.date == _todayString()
+        next = loaded.date == _todayString()
             ? loaded
             : DailyQuests(date: _todayString());
       } else {
-        _quests = DailyQuests(date: _todayString());
+        next = DailyQuests(date: _todayString());
       }
     } catch (e) {
       debugPrint('QuestProvider: failed to load: $e');
-      _quests = DailyQuests(date: _todayString());
+      next = DailyQuests(date: _todayString());
     }
+    if (_mutationGeneration != loadStartedGen) {
+      // Memory was mutated while we read storage — do not overwrite.
+      _loaded = true;
+      notifyListeners();
+      return;
+    }
+    _quests = next;
     _loaded = true;
     notifyListeners();
   }
@@ -53,13 +65,18 @@ class QuestProvider with ChangeNotifier {
   /// Returns 0 if already completed today.
   /// Also returns the all-complete bonus XP (15) once, on the completing quest.
   Future<int> markCompleted(QuestType type) async {
+    await _loadFuture;
+
     // Guard: refresh date check in case the app was left open past midnight
     final today = _todayString();
     if (_quests.date != today) {
+      _mutationGeneration++;
       _quests = DailyQuests(date: today);
     }
 
     if (_quests.isCompleted(type)) return 0;
+
+    _mutationGeneration++;
 
     int xpEarned = 5; // base quest XP
     final updated = Set<QuestType>.from(_quests.completed)..add(type);
@@ -78,6 +95,8 @@ class QuestProvider with ChangeNotifier {
 
   /// Clears quest state (called from UserProvider.resetProgress path)
   Future<void> reset() async {
+    await _loadFuture;
+    _mutationGeneration++;
     _quests = DailyQuests(date: _todayString());
     notifyListeners();
     await _storage.clearDailyQuests();

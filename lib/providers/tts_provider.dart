@@ -27,6 +27,11 @@ class TtsProvider with ChangeNotifier {
   int _playbackEpoch = 0;
   int _committedPlaybackEpoch = 0;
 
+  /// Matches the [_committedPlaybackEpoch] that was active when the engine
+  /// started the current utterance. Stale end events from a previous
+  /// utterance are ignored when a newer one has already been armed.
+  int _playingCommittedEpoch = 0;
+
   bool get voiceEnabled => _voiceEnabled;
   double get speechRate => _speechRate;
   double get pitch => _pitch;
@@ -46,6 +51,7 @@ class TtsProvider with ChangeNotifier {
     await _loadVoices();
 
     _tts.setStartHandler(() {
+      _playingCommittedEpoch = _committedPlaybackEpoch;
       _isSpeaking = true;
       notifyListeners();
     });
@@ -55,6 +61,7 @@ class TtsProvider with ChangeNotifier {
   }
 
   void _tryEndPlaybackFromHandler() {
+    if (_playingCommittedEpoch != _committedPlaybackEpoch) return;
     if (_committedPlaybackEpoch != _playbackEpoch) return;
     _isSpeaking = false;
     _currentText = null;

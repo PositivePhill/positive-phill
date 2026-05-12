@@ -158,4 +158,10 @@ class UserProvider with ChangeNotifier {
   Future<void> _saveProgress() async {
     await _storageService.saveUserProgress(_progress);
   }
+
+  @override
+  void dispose() {
+    levelUpNotifier.dispose();
+    super.dispose();
+  }
 }

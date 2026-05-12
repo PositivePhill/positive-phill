@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:positive_phill/models/affirmation.dart';
 import 'package:positive_phill/theme.dart';
@@ -120,7 +122,7 @@ class MoodBar extends StatelessWidget {
                   ),
                   labelPadding: const EdgeInsets.symmetric(horizontal: 4),
                   selected: isSelected,
-                  onSelected: (_) => onMoodSelected(mood),
+                  onSelected: (_) => unawaited(onMoodSelected(mood)),
                   selectedColor: colorScheme.secondaryContainer,
                   backgroundColor: colorScheme.surface,
                 ),

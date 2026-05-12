@@ -59,10 +59,10 @@ class _HomeScreenState extends State<HomeScreen> {
     _adsService.initialize();
     _adsService.loadRewardedAd();
     _adsService.loadInterstitialAd();
-    _loadDailyContent();
-    _loadCustomBackground();
-    _loadZenMode();
-    _loadMood();
+    unawaited(_loadDailyContent());
+    unawaited(_loadCustomBackground());
+    unawaited(_loadZenMode());
+    unawaited(_loadMood());
     _listenForLevelUp();
   }
 
@@ -220,7 +220,7 @@ class _HomeScreenState extends State<HomeScreen> {
         Timer(const Duration(milliseconds: 180), () {
       if (!mounted) return;
       if (index < 0 || index >= _currentPack.length) return;
-      tts.speak(_currentPack[index].text);
+      unawaited(tts.speak(_currentPack[index].text));
     });
   }
 
@@ -323,7 +323,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   hasCustomBg = true;
                 } catch (_) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
-                    StorageService().setCustomBackgroundWeb(null);
+                    unawaited(StorageService().setCustomBackgroundWeb(null));
                   });
                 }
               }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -23,6 +25,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   bool _loading = true;
   List<String> _lastFavoriteIds = const [];
   UserProvider? _userProvider;
+  int _resolveSeq = 0;
 
   @override
   void initState() {
@@ -33,10 +36,12 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       _userProvider = p;
       p.addListener(_onUserProviderChanged);
     });
-    _resolve();
+    unawaited(_resolve());
     // Quest: visit favorites screen — fire after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) completeQuest(context, QuestType.visitedFavorites);
+      if (mounted) {
+        unawaited(completeQuest(context, QuestType.visitedFavorites));
+      }
     });
   }
 
@@ -50,19 +55,19 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     if (!mounted || _loading || _userProvider == null) return;
     final ids = _userProvider!.progress.favorites;
     if (listEquals(ids, _lastFavoriteIds)) return;
-    _resolve();
+    unawaited(_resolve());
   }
 
   Future<void> _resolve() async {
+    final seq = ++_resolveSeq;
     final ids = context.read<UserProvider>().progress.favorites;
     final results = await Future.wait(ids.map((id) => _service.getById(id)));
-    if (mounted) {
-      setState(() {
-        _resolved = results;
-        _loading = false;
-        _lastFavoriteIds = List<String>.from(ids);
-      });
-    }
+    if (!mounted || seq != _resolveSeq) return;
+    setState(() {
+      _resolved = results;
+      _loading = false;
+      _lastFavoriteIds = List<String>.from(ids);
+    });
   }
 
   @override
