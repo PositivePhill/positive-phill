@@ -1,0 +1,17 @@
+{
+  "id": "morning_energy",
+  "name": "Morning Energy",
+  "emoji": "☀️",
+  "description": "Bright, grounded affirmations to start the day with momentum.",
+  "tags": ["confidence", "focus", "energy"],
+  "affirmations": [
+    { "id": "morning_energy_001", "text": "I welcome this morning with openness and steady energy.", "category": "confidence" },
+    { "id": "morning_energy_002", "text": "Today I choose one meaningful priority and honor it.", "category": "focus" },
+    { "id": "morning_energy_003", "text": "My body is awake, capable, and ready for gentle momentum.", "category": "confidence" },
+    { "id": "morning_energy_004", "text": "I savor light, breath, and the promise of a new beginning.", "category": "gratitude" },
+    { "id": "morning_energy_005", "text": "I move with purpose without rushing my nervous system.", "category": "discipline" },
+    { "id": "morning_energy_006", "text": "Opportunities find me when I show up consistently.", "category": "money" },
+    { "id": "morning_energy_007", "text": "I speak to myself with encouragement before I speak to the world.", "category": "confidence" },
+    { "id": "morning_energy_008", "text": "Small wins this morning build a strong day.", "category": "discipline" }
+  ]
+}

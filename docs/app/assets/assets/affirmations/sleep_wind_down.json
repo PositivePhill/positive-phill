@@ -1,0 +1,17 @@
+{
+  "id": "sleep_wind_down",
+  "name": "Sleep Wind Down",
+  "emoji": "🌙",
+  "description": "Gentle affirmations to release the day and welcome rest.",
+  "tags": ["calm", "healing", "rest"],
+  "affirmations": [
+    { "id": "sleep_wind_down_001", "text": "I soften my shoulders and let the day melt away.", "category": "calm" },
+    { "id": "sleep_wind_down_002", "text": "My breathing slows; my mind is allowed to be quiet.", "category": "calm" },
+    { "id": "sleep_wind_down_003", "text": "I did enough today; my worth is not measured by my output.", "category": "gratitude" },
+    { "id": "sleep_wind_down_004", "text": "I release unfinished tasks to tomorrow’s fresh light.", "category": "calm" },
+    { "id": "sleep_wind_down_005", "text": "My bed is a safe place; I am held and at ease.", "category": "healing" },
+    { "id": "sleep_wind_down_006", "text": "I forgive small frustrations from today with compassion.", "category": "healing" },
+    { "id": "sleep_wind_down_007", "text": "Grateful thoughts anchor me as I drift toward sleep.", "category": "gratitude" },
+    { "id": "sleep_wind_down_008", "text": "I trust my body to restore me while I rest.", "category": "calm" }
+  ]
+}
