@@ -428,10 +428,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         IconButton(
                                           onPressed: _toggleZenMode,
                                           icon: Icon(
-                                            _zenMode
-                                                ? Icons.self_improvement
-                                                : Icons
-                                                    .self_improvement_outlined,
+                                            Icons.self_improvement,
                                             color: _zenMode
                                                 ? colorScheme.primary
                                                 : colorScheme.onSurface,
