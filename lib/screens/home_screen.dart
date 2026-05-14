@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -571,19 +572,24 @@ class _HomeScreenState extends State<HomeScreen> {
                                                     textTheme.bodyMedium,
                                               ),
                                             )
-                                          : PageView.builder(
-                                              controller: _pageController,
-                                              itemCount:
-                                                  _currentPack.length,
-                                              onPageChanged: _onPageChanged,
-                                              itemBuilder: (context, index) {
-                                                return AffirmationCard(
-                                                  affirmation:
-                                                      _currentPack[index],
-                                                  textBacklightEnabled:
-                                                      textBacklight,
-                                                );
-                                              },
+                                          : ScrollConfiguration(
+                                              behavior:
+                                                  const AppScrollBehavior(),
+                                              child: PageView.builder(
+                                                controller: _pageController,
+                                                itemCount:
+                                                    _currentPack.length,
+                                                onPageChanged: _onPageChanged,
+                                                itemBuilder:
+                                                    (context, index) {
+                                                  return AffirmationCard(
+                                                    affirmation:
+                                                        _currentPack[index],
+                                                    textBacklightEnabled:
+                                                        textBacklight,
+                                                  );
+                                                },
+                                              ),
                                             ),
                                     ),
 
@@ -756,6 +762,18 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
     );
   }
+}
+
+/// Mouse/trackpad can drag [PageView] on desktop web; touch unchanged.
+class AppScrollBehavior extends MaterialScrollBehavior {
+  const AppScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        ...super.dragDevices,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.trackpad,
+      };
 }
 
 // ── CategorySelector ──────────────────────────────────────────────────────────
