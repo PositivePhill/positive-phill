@@ -1,6 +1,7 @@
 import 'dart:io';
+import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:path_provider/path_provider.dart';
 
 Future<String?> writeSharePngBytes(Uint8List bytes) async {

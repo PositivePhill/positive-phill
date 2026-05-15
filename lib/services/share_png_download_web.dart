@@ -4,16 +4,21 @@ import 'dart:html' as html;
 import 'dart:typed_data';
 
 Future<bool> downloadPngBytes(Uint8List bytes, String filename) async {
+  String? url;
   try {
     final blob = html.Blob([bytes], 'image/png');
-    final url = html.Url.createObjectUrlFromBlob(blob);
+    url = html.Url.createObjectUrlFromBlob(blob);
     html.AnchorElement(href: url)
       ..setAttribute('download', filename)
       ..click();
     await Future<void>.delayed(const Duration(milliseconds: 100));
-    html.Url.revokeObjectUrl(url);
     return true;
   } catch (_) {
     return false;
+  } finally {
+    final u = url;
+    if (u != null) {
+      html.Url.revokeObjectUrl(u);
+    }
   }
 }
