@@ -58,6 +58,7 @@ Future<void> showBackgroundStyleSheet(
                             onTap: () async {
                               HapticsService.feedback(FeedbackType.selection);
                               await storage.setBackgroundGradientPreset(preset);
+                              if (!context.mounted) return;
                               setModalState(() => selected = preset);
                             },
                           ),

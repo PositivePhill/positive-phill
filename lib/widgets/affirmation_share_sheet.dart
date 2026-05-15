@@ -58,8 +58,10 @@ Future<void> showAffirmationShareSheet({
                   await Clipboard.setData(
                     ClipboardData(text: affirmation.text),
                   );
-                  if (context.mounted) {
+                  if (ctx.mounted) {
                     Navigator.pop(ctx);
+                  }
+                  if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Copied to clipboard'),
