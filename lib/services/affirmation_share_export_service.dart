@@ -34,17 +34,21 @@ class AffirmationShareExportService {
       builder: (ctx) => Positioned(
         left: -5000,
         top: 0,
-        child: Material(
-          color: Colors.transparent,
-          child: RepaintBoundary(
-            key: key,
-            child: SizedBox(
-              width: 360,
-              height: 450,
-              child: ShareCardCanvas(
-                affirmation: affirmation,
-                categoryLabel: categoryLabel,
-                colorScheme: colorScheme,
+        child: IgnorePointer(
+          child: ExcludeSemantics(
+            child: Material(
+              color: Colors.transparent,
+              child: RepaintBoundary(
+                key: key,
+                child: SizedBox(
+                  width: 360,
+                  height: 450,
+                  child: ShareCardCanvas(
+                    affirmation: affirmation,
+                    categoryLabel: categoryLabel,
+                    colorScheme: colorScheme,
+                  ),
+                ),
               ),
             ),
           ),

@@ -37,17 +37,31 @@ Future<void> showAffirmationShareSheet({
                 leading: const Icon(Icons.share_outlined),
                 title: const Text('Share text'),
                 subtitle: const Text('Messages, email, and more'),
-                onTap: () {
+                onTap: () async {
                   HapticsService.feedback(FeedbackType.selection);
-                  Navigator.pop(ctx);
-                  SharePlus.instance.share(
-                    ShareParams(
-                      text: AffirmationShareExportService.shareTextBody(
-                        affirmation,
+                  if (ctx.mounted) {
+                    Navigator.pop(ctx);
+                  }
+                  try {
+                    await SharePlus.instance.share(
+                      ShareParams(
+                        text: AffirmationShareExportService.shareTextBody(
+                          affirmation,
+                        ),
+                        subject: 'Daily Affirmation',
                       ),
-                      subject: 'Daily Affirmation',
-                    ),
-                  );
+                    );
+                  } catch (_) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content:
+                              Text('Share failed. Try copying instead.'),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  }
                 },
               ),
               ListTile(
