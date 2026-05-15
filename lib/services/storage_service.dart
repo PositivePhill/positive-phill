@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:positive_phill/models/background_gradient_preset.dart';
 import 'package:positive_phill/models/user_progress.dart';
 
 class StorageService {
@@ -22,11 +23,14 @@ class StorageService {
   static const String _dailyMoodValueKey = 'daily_mood_value';
   static const String _dailyMoodDateKey = 'daily_mood_date';
   static const String _dailyQuestsKey = 'daily_quests';
+  static const String _backgroundGradientPresetKey = 'bg_gradient_preset';
 
   static final ValueNotifier<String?> customBackgroundPath = ValueNotifier<String?>(null);
   static final ValueNotifier<String?> customBackgroundWeb = ValueNotifier<String?>(null);
   static final ValueNotifier<Alignment> customBackgroundAlignment = ValueNotifier<Alignment>(Alignment.center);
   static final ValueNotifier<bool> textBacklightEnabled = ValueNotifier<bool>(true);
+  static final ValueNotifier<BackgroundGradientPreset> backgroundGradientPreset =
+      ValueNotifier<BackgroundGradientPreset>(BackgroundGradientPreset.none);
 
   Future<UserProgress> loadUserProgress() async {
     try {
@@ -163,6 +167,30 @@ class StorageService {
       customBackgroundWeb.value = base64;
     } catch (e) {
       debugPrint('Failed to save custom background web: $e');
+    }
+  }
+
+  Future<BackgroundGradientPreset> getBackgroundGradientPreset() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_backgroundGradientPresetKey);
+      final preset = BackgroundGradientPreset.fromStorage(raw);
+      backgroundGradientPreset.value = preset;
+      return preset;
+    } catch (e) {
+      debugPrint('Failed to load background gradient preset: $e');
+      backgroundGradientPreset.value = BackgroundGradientPreset.none;
+      return BackgroundGradientPreset.none;
+    }
+  }
+
+  Future<void> setBackgroundGradientPreset(BackgroundGradientPreset preset) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_backgroundGradientPresetKey, preset.storageName);
+      backgroundGradientPreset.value = preset;
+    } catch (e) {
+      debugPrint('Failed to save background gradient preset: $e');
     }
   }
 

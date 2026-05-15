@@ -191,6 +191,9 @@ class _FavoritesList extends StatelessWidget {
           affirmation: affirmation,
           showActions: true,
           textBacklightEnabled: false,
+          shareSubtitle: affirmation.categories.isNotEmpty
+              ? affirmation.categories.first.displayName
+              : null,
         );
       },
     );

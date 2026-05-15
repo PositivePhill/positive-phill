@@ -1,15 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:positive_phill/models/accent_preset.dart';
+import 'package:positive_phill/theme.dart';
 
 class ThemeProvider with ChangeNotifier {
   static const String _themeModeKey = 'theme_mode';
+  static const String _accentPresetKey = 'accent_preset';
+
   ThemeMode _themeMode = ThemeMode.system;
+  AccentPreset _accentPreset = AccentPreset.lavender;
 
   ThemeMode get themeMode => _themeMode;
 
+  AccentPreset get accentPreset => _accentPreset;
+
+  ThemeData get lightThemeData => lightThemeForAccent(_accentPreset);
+
+  ThemeData get darkThemeData => darkThemeForAccent(_accentPreset);
+
   ThemeProvider() {
     _loadThemeMode();
+    _loadAccentPreset();
   }
 
   Future<void> _loadThemeMode() async {
@@ -50,6 +62,18 @@ class ThemeProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> _loadAccentPreset() async {
+    AccentPreset resolved = AccentPreset.lavender;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_accentPresetKey);
+      resolved = AccentPreset.fromStorage(raw);
+    } catch (_) {
+      resolved = AccentPreset.lavender;
+    }
+    _accentPreset = resolved;
+    notifyListeners();
+  }
 
   Future<void> setThemeMode(ThemeMode mode) async {
     _themeMode = mode;
@@ -63,13 +87,25 @@ class ThemeProvider with ChangeNotifier {
     }
   }
 
+  Future<void> setAccentPreset(AccentPreset preset) async {
+    _accentPreset = preset;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_accentPresetKey, preset.storageName);
+    } catch (_) {
+      // Fail silently
+    }
+  }
+
   void toggleTheme() {
     if (_themeMode == ThemeMode.dark) {
       setThemeMode(ThemeMode.light);
     } else if (_themeMode == ThemeMode.light) {
       setThemeMode(ThemeMode.dark);
     } else {
-      final brightness = SchedulerBinding.instance.platformDispatcher.platformBrightness;
+      final brightness =
+          SchedulerBinding.instance.platformDispatcher.platformBrightness;
       setThemeMode(brightness == Brightness.dark ? ThemeMode.light : ThemeMode.dark);
     }
   }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart' show SharePlus, ShareParams;
 import 'package:positive_phill/models/affirmation.dart';
 import 'package:positive_phill/models/daily_quests.dart';
 import 'package:positive_phill/providers/tts_provider.dart';
@@ -8,17 +7,21 @@ import 'package:positive_phill/providers/user_provider.dart';
 import 'package:positive_phill/quest_helper.dart';
 import 'package:positive_phill/services/haptics_service.dart';
 import 'package:positive_phill/theme.dart';
+import 'package:positive_phill/widgets/affirmation_share_sheet.dart';
 
 class AffirmationCard extends StatefulWidget {
   final Affirmation affirmation;
   final bool showActions;
   final bool textBacklightEnabled;
+  /// Optional label on share card (e.g. category name).
+  final String? shareSubtitle;
 
   const AffirmationCard({
     super.key,
     required this.affirmation,
     this.showActions = true,
     this.textBacklightEnabled = true,
+    this.shareSubtitle,
   });
 
   @override
@@ -64,11 +67,10 @@ class _AffirmationCardState extends State<AffirmationCard>
 
   void _onShare() {
     HapticsService.feedback(FeedbackType.selection);
-    SharePlus.instance.share(
-      ShareParams(
-        text: '${widget.affirmation.text}\n\n— Positive Phill by Possum Mattern Studios',
-        subject: 'Daily Affirmation',
-      ),
+    showAffirmationShareSheet(
+      context: context,
+      affirmation: widget.affirmation,
+      categoryLabel: widget.shareSubtitle,
     );
   }
 

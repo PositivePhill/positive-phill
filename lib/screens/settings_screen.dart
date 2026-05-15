@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io' if (dart.library.html) 'package:positive_phill/io_stub.dart' as io;
 
@@ -10,6 +11,7 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:positive_phill/models/background_gradient_preset.dart';
 import 'package:positive_phill/platform/background_image.dart';
 import 'package:positive_phill/providers/quest_provider.dart';
 import 'package:positive_phill/providers/theme_provider.dart';
@@ -19,6 +21,8 @@ import 'package:positive_phill/services/haptics_service.dart';
 import 'package:positive_phill/services/notifications_service.dart';
 import 'package:positive_phill/services/storage_service.dart';
 import 'package:positive_phill/theme.dart';
+import 'package:positive_phill/widgets/accent_preset_sheet.dart';
+import 'package:positive_phill/widgets/background_style_sheet.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -36,6 +40,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? _customBgWeb;
   bool _textBacklightEnabled = true;
   bool _zenModeEnabled = false;
+  BackgroundGradientPreset _bgPreset = BackgroundGradientPreset.none;
 
   @override
   void initState() {
@@ -45,6 +50,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadCustomBackground();
     _loadTextBacklight();
     _loadZenMode();
+    unawaited(_loadBackgroundPreset());
+  }
+
+  Future<void> _loadBackgroundPreset() async {
+    final p = await _storage.getBackgroundGradientPreset();
+    if (mounted) setState(() => _bgPreset = p);
   }
 
   Future<void> _loadTextBacklight() async {
@@ -453,6 +464,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   size: 24,
                 ),
               ),
+              ListTile(
+                leading: Icon(Icons.palette_outlined,
+                    color: colorScheme.primary),
+                title: const Text('Accent Color'),
+                subtitle: Text(themeProvider.accentPreset.displayName),
+                trailing: const Icon(Icons.chevron_right, size: 20),
+                onTap: () async {
+                  HapticsService.feedback(FeedbackType.selection);
+                  await showAccentPresetSheet(context);
+                },
+              ),
               SwitchListTile(
                 title: const Text('Focus Mode'),
                 subtitle: const Text(
@@ -465,6 +487,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 },
                 secondary: Icon(Icons.self_improvement,
                     color: colorScheme.primary, size: 24),
+              ),
+              ListTile(
+                leading: Icon(Icons.gradient, color: colorScheme.primary),
+                title: const Text('Background Style'),
+                subtitle: Text(_bgPreset.displayName),
+                trailing: const Icon(Icons.chevron_right, size: 20),
+                onTap: () async {
+                  HapticsService.feedback(FeedbackType.selection);
+                  await showBackgroundStyleSheet(
+                    context,
+                    initial: _bgPreset,
+                    onPickImage: _pickBackgroundImage,
+                  );
+                  final p = await _storage.getBackgroundGradientPreset();
+                  if (mounted) setState(() => _bgPreset = p);
+                },
               ),
               ListTile(
                 leading: Icon(Icons.wallpaper, color: colorScheme.primary),

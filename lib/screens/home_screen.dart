@@ -7,10 +7,12 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:positive_phill/models/affirmation.dart';
+import 'package:positive_phill/models/background_gradient_preset.dart';
+import 'package:positive_phill/models/daily_quests.dart';
+import 'package:positive_phill/nav.dart';
 import 'package:positive_phill/providers/tts_provider.dart';
 import 'package:positive_phill/providers/user_provider.dart';
 import 'package:positive_phill/quest_helper.dart';
-import 'package:positive_phill/models/daily_quests.dart';
 import 'package:positive_phill/services/affirmations_service.dart';
 import 'package:positive_phill/platform/background_image.dart';
 import 'package:positive_phill/services/storage_service.dart';
@@ -64,6 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
     unawaited(_loadCustomBackground());
     unawaited(_loadZenMode());
     unawaited(_loadMood());
+    unawaited(_loadBackgroundPreset());
     _listenForLevelUp();
   }
 
@@ -109,6 +112,10 @@ class _HomeScreenState extends State<HomeScreen> {
       StorageService.customBackgroundPath.value = path;
       StorageService.customBackgroundWeb.value = web;
     }
+  }
+
+  Future<void> _loadBackgroundPreset() async {
+    await StorageService().getBackgroundGradientPreset();
   }
 
   // ── Zen mode ─────────────────────────────────────────────────────────────
@@ -300,12 +307,14 @@ class _HomeScreenState extends State<HomeScreen> {
             StorageService.customBackgroundWeb,
             StorageService.customBackgroundAlignment,
             StorageService.textBacklightEnabled,
+            StorageService.backgroundGradientPreset,
           ]),
           builder: (context, _) {
             final bgPath = StorageService.customBackgroundPath.value;
             final bgWeb = StorageService.customBackgroundWeb.value;
             final align = StorageService.customBackgroundAlignment.value;
             final textBacklight = StorageService.textBacklightEnabled.value;
+            final bgPreset = StorageService.backgroundGradientPreset.value;
 
             Widget bgWidget = ColoredBox(
                 color: Theme.of(context).scaffoldBackgroundColor);
@@ -333,6 +342,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 bgWidget =
                     BackgroundImageBuilder.build(bgPath, alignment: align);
                 hasCustomBg = true;
+              }
+            }
+
+            if (!hasCustomBg) {
+              final g = bgPreset.linearGradientFor(
+                  Theme.of(context).brightness);
+              if (g != null) {
+                bgWidget = Container(
+                  width: double.infinity,
+                  height: double.infinity,
+                  decoration: BoxDecoration(gradient: g),
+                );
               }
             }
 
@@ -451,6 +472,84 @@ class _HomeScreenState extends State<HomeScreen> {
                                         ),
                                       ],
                                     ),
+
+                                    if (!_zenMode &&
+                                        !hasCustomBg &&
+                                        bgPreset ==
+                                            BackgroundGradientPreset
+                                                .none) ...[
+                                      const SizedBox(height: AppSpacing.sm),
+                                      Material(
+                                        color: colorScheme
+                                            .surfaceContainerHighest
+                                            .withValues(alpha: 0.92),
+                                        borderRadius: BorderRadius.circular(
+                                            AppRadius.md),
+                                        child: InkWell(
+                                          borderRadius: BorderRadius.circular(
+                                              AppRadius.md),
+                                          onTap: () {
+                                            HapticsService.feedback(
+                                                FeedbackType.selection);
+                                            context.push(AppRoutes.settings);
+                                          },
+                                          child: Padding(
+                                            padding: const EdgeInsets
+                                                .symmetric(
+                                              horizontal: 16,
+                                              vertical: 12,
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.wallpaper_outlined,
+                                                  color: colorScheme.primary,
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        'Make this screen yours',
+                                                        style: textTheme
+                                                            .titleSmall
+                                                            ?.copyWith(
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          color: colorScheme
+                                                              .onSurface,
+                                                          shadows:
+                                                              textBacklightShadows,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(
+                                                          height: 2),
+                                                      Text(
+                                                        'Add a background image',
+                                                        style: textTheme
+                                                            .bodySmall
+                                                            ?.copyWith(
+                                                          color: colorScheme
+                                                              .onSurfaceVariant,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                Icon(
+                                                  Icons.chevron_right,
+                                                  color: colorScheme
+                                                      .onSurfaceVariant,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
 
                                     // ── 2. XP + Streak (hidden in zen) ─
                                     if (!_zenMode) ...[
@@ -587,6 +686,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                                         _currentPack[index],
                                                     textBacklightEnabled:
                                                         textBacklight,
+                                                    shareSubtitle:
+                                                        _selectedCategory
+                                                            ?.displayName,
                                                   );
                                                 },
                                               ),
