@@ -74,14 +74,24 @@ class ShareCardCanvas extends StatelessWidget {
             ],
             Expanded(
               child: Center(
-                child: Text(
-                  affirmation.text,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w600,
-                    height: 1.4,
-                    color: colorScheme.onPrimaryContainer,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.center,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 312),
+                    child: Text(
+                      affirmation.text,
+                      textAlign: TextAlign.center,
+                      maxLines: 8,
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                        height: 1.4,
+                        color: colorScheme.onPrimaryContainer,
+                      ),
+                    ),
                   ),
                 ),
               ),

@@ -49,9 +49,7 @@ Future<void> showAccentPresetSheet(BuildContext context) {
                       children: [
                         CircleAvatar(
                           radius: 18,
-                          backgroundColor: preset == AccentPreset.lavender
-                              ? const Color(0xFF7B68EE)
-                              : preset.seedColor,
+                          backgroundColor: preset.seedColor,
                         ),
                         const SizedBox(height: 6),
                         Text(
