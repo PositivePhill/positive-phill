@@ -10,6 +10,7 @@ Future<bool> downloadPngBytes(Uint8List bytes, String filename) async {
     html.AnchorElement(href: url)
       ..setAttribute('download', filename)
       ..click();
+    await Future<void>.delayed(const Duration(milliseconds: 100));
     html.Url.revokeObjectUrl(url);
     return true;
   } catch (_) {

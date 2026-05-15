@@ -19,7 +19,7 @@ Future<void> showBackgroundStyleSheet(
     builder: (ctx) {
       BackgroundGradientPreset selected = initial;
       return StatefulBuilder(
-        builder: (context, setModalState) {
+        builder: (modalCtx, setModalState) {
           return SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
@@ -58,7 +58,7 @@ Future<void> showBackgroundStyleSheet(
                             onTap: () async {
                               HapticsService.feedback(FeedbackType.selection);
                               await storage.setBackgroundGradientPreset(preset);
-                              if (!context.mounted) return;
+                              if (!modalCtx.mounted) return;
                               setModalState(() => selected = preset);
                             },
                           ),

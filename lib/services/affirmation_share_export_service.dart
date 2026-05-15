@@ -11,6 +11,9 @@ import 'package:positive_phill/services/share_temp_file_stub.dart'
 import 'package:positive_phill/widgets/share_card_canvas.dart';
 import 'package:share_plus/share_plus.dart';
 
+/// Gives the offscreen [RepaintBoundary] one extra paint/layout settle window before capture.
+const Duration _shareCardRenderSettleDelay = Duration(milliseconds: 40);
+
 /// Best-effort PNG export for affirmations (vector card only).
 class AffirmationShareExportService {
   AffirmationShareExportService._();
@@ -50,7 +53,7 @@ class AffirmationShareExportService {
     overlayState.insert(entry);
     await Future<void>.delayed(Duration.zero);
     await WidgetsBinding.instance.endOfFrame;
-    await Future<void>.delayed(const Duration(milliseconds: 40));
+    await Future<void>.delayed(_shareCardRenderSettleDelay);
 
     Uint8List? bytes;
     try {

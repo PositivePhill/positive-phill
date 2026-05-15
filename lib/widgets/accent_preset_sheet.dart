@@ -40,7 +40,7 @@ Future<void> showAccentPresetSheet(BuildContext context) {
                   return InkWell(
                     onTap: () async {
                       HapticsService.feedback(FeedbackType.selection);
-                      await context.read<ThemeProvider>().setAccentPreset(preset);
+                      await ctx.read<ThemeProvider>().setAccentPreset(preset);
                       if (ctx.mounted) Navigator.pop(ctx);
                     },
                     borderRadius: BorderRadius.circular(AppRadius.md),
