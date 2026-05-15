@@ -26,6 +26,7 @@ class AffirmationShareExportService {
     required Affirmation affirmation,
     String? categoryLabel,
   }) async {
+    final colorScheme = Theme.of(context).colorScheme;
     final overlayState = Overlay.of(context, rootOverlay: true);
     final key = GlobalKey();
     late OverlayEntry entry;
@@ -43,7 +44,7 @@ class AffirmationShareExportService {
               child: ShareCardCanvas(
                 affirmation: affirmation,
                 categoryLabel: categoryLabel,
-                colorScheme: Theme.of(context).colorScheme,
+                colorScheme: colorScheme,
               ),
             ),
           ),
