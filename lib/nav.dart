@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:positive_phill/models/rescue_intent.dart';
 import 'package:positive_phill/screens/favorites_screen.dart';
 import 'package:positive_phill/screens/home_screen.dart';
+import 'package:positive_phill/screens/rescue_flow_screen.dart';
+import 'package:positive_phill/screens/rescue_screen.dart';
 import 'package:positive_phill/screens/session_flow_screen.dart';
 import 'package:positive_phill/screens/settings_screen.dart';
 import 'package:positive_phill/screens/webview_screen.dart';
@@ -45,6 +48,24 @@ class AppRouter {
           child: const FavoritesScreen(),
         ),
       ),
+      GoRoute(
+        path: AppRoutes.rescueFlow,
+        name: 'rescueFlow',
+        pageBuilder: (context, state) {
+          final raw = state.pathParameters['intent'];
+          final intent = RescueIntent.fromId(raw);
+          return MaterialPage(
+            child: RescueFlowScreen(intent: intent),
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.rescue,
+        name: 'rescue',
+        pageBuilder: (context, state) => MaterialPage(
+          child: const RescueScreen(),
+        ),
+      ),
     ],
   );
 }
@@ -55,4 +76,14 @@ class AppRoutes {
   static const String settings = '/settings';
   static const String webview = '/webview';
   static const String favorites = '/favorites';
+  static const String rescue = '/rescue';
+  /// go_router path pattern for `/rescue/flow/:intent`.
+  ///
+  /// In [AppRouter.router]'s `routes` list, register this [GoRoute] before the
+  /// `/rescue` one so the more specific `/rescue/flow/:intent` wins over `/rescue`.
+  static const String rescueFlow = '/rescue/flow/:intent';
+
+  /// Concrete path for navigation (deeplink / refresh safe; no [extra]).
+  static String rescueFlowPath(RescueIntent intent) =>
+      '/rescue/flow/${intent.id}';
 }
