@@ -56,7 +56,6 @@ class _RescueFlowScreenState extends State<RescueFlowScreen> {
       _loadError = null;
     });
     try {
-      await AffirmationsService.preload();
       final pack =
           await _affirmationsService.getSessionPack(widget.intent.category);
       if (!mounted) return;
