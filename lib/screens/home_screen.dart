@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:positive_phill/models/affirmation.dart';
+import 'package:positive_phill/models/board_video_preset.dart';
 import 'package:positive_phill/models/background_gradient_preset.dart';
 import 'package:positive_phill/models/daily_quests.dart';
 import 'package:positive_phill/nav.dart';
@@ -28,6 +29,7 @@ import 'package:positive_phill/widgets/streak_display.dart';
 import 'package:positive_phill/widgets/sos_entry_card.dart';
 import 'package:positive_phill/widgets/streak_heatmap.dart';
 import 'package:positive_phill/widgets/xp_progress_bar.dart';
+import 'package:positive_phill/widgets/board_video_background.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -47,6 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentPage = 0;
   bool _zenMode = false;
   bool _readyForAutoRead = false;
+  bool _videoBackdropVisible = false;
 
   // Debounce timer for auto-read on PageView swipes. Coalesces fast swipes
   // and gives TtsProvider time to settle between page changes.
@@ -68,6 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
     unawaited(_loadZenMode());
     unawaited(_loadMood());
     unawaited(_loadBackgroundPreset());
+    unawaited(_loadBoardVideoPreset());
     _listenForLevelUp();
   }
 
@@ -117,6 +121,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadBackgroundPreset() async {
     await StorageService().getBackgroundGradientPreset();
+  }
+
+  Future<void> _loadBoardVideoPreset() async {
+    await StorageService().getBoardVideoPreset();
   }
 
   // ── Zen mode ─────────────────────────────────────────────────────────────
@@ -309,6 +317,7 @@ class _HomeScreenState extends State<HomeScreen> {
             StorageService.customBackgroundAlignment,
             StorageService.textBacklightEnabled,
             StorageService.backgroundGradientPreset,
+            StorageService.boardVideoPreset,
           ]),
           builder: (context, _) {
             final bgPath = StorageService.customBackgroundPath.value;
@@ -316,6 +325,8 @@ class _HomeScreenState extends State<HomeScreen> {
             final align = StorageService.customBackgroundAlignment.value;
             final textBacklight = StorageService.textBacklightEnabled.value;
             final bgPreset = StorageService.backgroundGradientPreset.value;
+            final videoChosen =
+                StorageService.boardVideoPreset.value != BoardVideoPreset.none;
 
             Widget bgWidget = ColoredBox(
                 color: Theme.of(context).scaffoldBackgroundColor);
@@ -358,6 +369,13 @@ class _HomeScreenState extends State<HomeScreen> {
               }
             }
 
+            final needsReadabilityScrim =
+                hasCustomBg || (videoChosen && _videoBackdropVisible);
+            final suppressPlainBackgroundTip =
+                hasCustomBg || videoChosen;
+
+            final videoPresetActive = StorageService.boardVideoPreset.value;
+
             final textBacklightShadows = textBacklight
                 ? [
                     Shadow(
@@ -371,7 +389,24 @@ class _HomeScreenState extends State<HomeScreen> {
             return Stack(
               children: [
                 Positioned.fill(child: bgWidget),
-                if (hasCustomBg)
+                if (videoChosen)
+                  Positioned.fill(
+                    child: BoardVideoBackground(
+                      key: ValueKey(videoPresetActive.storageName),
+                      preset: videoPresetActive,
+                      onFatalError: () {
+                        unawaited(
+                          StorageService()
+                              .setBoardVideoPreset(BoardVideoPreset.none),
+                        );
+                      },
+                      onPresentationChanged: (visible) {
+                        if (!mounted) return;
+                        setState(() => _videoBackdropVisible = visible);
+                      },
+                    ),
+                  ),
+                if (needsReadabilityScrim)
                   Positioned.fill(
                     child: DecoratedBox(
                       decoration: BoxDecoration(
@@ -482,7 +517,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ],
 
                                     if (!_zenMode &&
-                                        !hasCustomBg &&
+                                        !suppressPlainBackgroundTip &&
                                         bgPreset ==
                                             BackgroundGradientPreset
                                                 .none) ...[
