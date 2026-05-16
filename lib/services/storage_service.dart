@@ -25,6 +25,13 @@ class StorageService {
   static const String _dailyQuestsKey = 'daily_quests';
   static const String _backgroundGradientPresetKey = 'bg_gradient_preset';
 
+  /// Last chosen ambient loop id (`SanctuarySoundscape.storageId`).
+  /// Playing state is not persisted.
+  static const String sanctuarySoundscape = 'sanctuary_soundscape';
+
+  /// Ambience volume clamped 0–1 when stored.
+  static const String sanctuaryVolume = 'sanctuary_volume';
+
   static final ValueNotifier<String?> customBackgroundPath = ValueNotifier<String?>(null);
   static final ValueNotifier<String?> customBackgroundWeb = ValueNotifier<String?>(null);
   static final ValueNotifier<Alignment> customBackgroundAlignment = ValueNotifier<Alignment>(Alignment.center);
@@ -433,6 +440,54 @@ class StorageService {
       await prefs.remove(_dailyQuestsKey);
     } catch (e) {
       debugPrint('Failed to clear daily quests: $e');
+    }
+  }
+
+  // ── Sanctuary Sounds (ambient audio) ────────────────────────────────────
+
+  Future<String?> getSanctuarySoundscape() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(sanctuarySoundscape);
+    } catch (e) {
+      debugPrint('Failed to load sanctuary_soundscape: $e');
+      return null;
+    }
+  }
+
+  /// Persists chosen soundscape id (`SanctuarySoundscape.storageId`).
+  /// Clearing selection is not surfaced in UI v1.3 — pass null to remove key if needed later.
+  Future<void> setSanctuarySoundscape(String? id) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (id == null || id.trim().isEmpty) {
+        await prefs.remove(sanctuarySoundscape);
+      } else {
+        await prefs.setString(sanctuarySoundscape, id.trim());
+      }
+    } catch (e) {
+      debugPrint('Failed to save sanctuary_soundscape: $e');
+    }
+  }
+
+  Future<double> getSanctuaryVolume() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final v = prefs.getDouble(sanctuaryVolume);
+      if (v == null) return 0.45;
+      return v.clamp(0.0, 1.0);
+    } catch (e) {
+      debugPrint('Failed to load sanctuary_volume: $e');
+      return 0.45;
+    }
+  }
+
+  Future<void> setSanctuaryVolume(double value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(sanctuaryVolume, value.clamp(0.0, 1.0));
+    } catch (e) {
+      debugPrint('Failed to save sanctuary_volume: $e');
     }
   }
 
