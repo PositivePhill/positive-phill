@@ -10,10 +10,12 @@ import 'package:positive_phill/models/rescue_intent.dart';
 import 'package:positive_phill/providers/ritual_provider.dart';
 import 'package:positive_phill/providers/tts_provider.dart';
 import 'package:positive_phill/services/affirmations_service.dart';
+import 'package:positive_phill/services/haptics_service.dart';
 import 'package:positive_phill/services/storage_service.dart';
 import 'package:positive_phill/theme.dart';
 import 'package:positive_phill/widgets/affirmation_card.dart';
 import 'package:positive_phill/widgets/ritual_timer_bar.dart';
+import 'package:positive_phill/widgets/sanctuary_sounds_sheet.dart';
 
 class RescueFlowScreen extends StatefulWidget {
   final RescueIntent intent;
@@ -274,10 +276,40 @@ class _RescueFlowScreenState extends State<RescueFlowScreen> {
                                 const SizedBox(
                                   height: AppSpacing.md,
                                 ),
-                                RitualTimerBar(
-                                  onRitualStarted: _handleRitualStarted,
-                                  onRitualPaused: _handleRitualPaused,
-                                  onRitualReset: _handleRitualReset,
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    IconButton(
+                                      tooltip: 'Sanctuary sounds',
+                                      padding: EdgeInsets.zero,
+                                      visualDensity:
+                                          VisualDensity.compact,
+                                      constraints: const BoxConstraints(
+                                        minWidth: 40,
+                                        minHeight: 40,
+                                      ),
+                                      icon:
+                                          Icon(Icons.graphic_eq_rounded,
+                                              color:
+                                                  colorScheme.primary),
+                                      onPressed: () {
+                                        HapticsService.feedback(
+                                            FeedbackType.selection);
+                                        showSanctuarySoundsSheet(
+                                            context);
+                                      },
+                                    ),
+                                    Expanded(
+                                      child: RitualTimerBar(
+                                        onRitualStarted:
+                                            _handleRitualStarted,
+                                        onRitualPaused:
+                                            _handleRitualPaused,
+                                        onRitualReset:
+                                            _handleRitualReset,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(
                                   height: AppSpacing.lg,

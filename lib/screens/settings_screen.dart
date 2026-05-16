@@ -15,6 +15,7 @@ import 'package:positive_phill/models/background_gradient_preset.dart';
 import 'package:positive_phill/platform/background_image.dart';
 import 'package:positive_phill/providers/quest_provider.dart';
 import 'package:positive_phill/providers/theme_provider.dart';
+import 'package:positive_phill/providers/sanctuary_audio_provider.dart';
 import 'package:positive_phill/providers/tts_provider.dart';
 import 'package:positive_phill/providers/user_provider.dart';
 import 'package:positive_phill/services/haptics_service.dart';
@@ -23,6 +24,7 @@ import 'package:positive_phill/services/storage_service.dart';
 import 'package:positive_phill/theme.dart';
 import 'package:positive_phill/widgets/accent_preset_sheet.dart';
 import 'package:positive_phill/widgets/background_style_sheet.dart';
+import 'package:positive_phill/widgets/sanctuary_sounds_sheet.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -413,6 +415,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final themeProvider = context.watch<ThemeProvider>();
     final tts = context.watch<TtsProvider>();
+    final sanctuary = context.watch<SanctuaryAudioProvider>();
 
     return Scaffold(
       appBar: AppBar(
@@ -632,6 +635,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         tts.preview();
                       }
                     : null,
+              ),
+              const Divider(),
+              ListTile(
+                leading: Icon(Icons.graphic_eq_rounded,
+                    color: colorScheme.primary),
+                title: const Text('Sanctuary Sounds'),
+                subtitle: Text(sanctuary.settingsSubtitle()),
+                trailing: const Icon(Icons.chevron_right, size: 20),
+                onTap: () {
+                  HapticsService.feedback(FeedbackType.selection);
+                  showSanctuarySoundsSheet(context);
+                },
               ),
               const Divider(),
 
