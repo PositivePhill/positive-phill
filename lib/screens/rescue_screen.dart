@@ -9,6 +9,9 @@ import 'package:positive_phill/widgets/intent_card.dart';
 class RescueScreen extends StatelessWidget {
   const RescueScreen({super.key});
 
+  /// Studio branding asset (Possum mascot / app icon).
+  static const String studioLogoAsset = 'assets/icons/icon.png';
+
   static const List<RescueIntent> _intents = [
     RescueIntent.calm,
     RescueIntent.hype,
@@ -76,6 +79,34 @@ class RescueScreen extends StatelessWidget {
                     style: textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                       height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  Center(
+                    child: MergeSemantics(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Image.asset(
+                            studioLogoAsset,
+                            height: 36,
+                            width: 36,
+                            fit: BoxFit.contain,
+                            filterQuality: FilterQuality.medium,
+                            excludeFromSemantics: true,
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            'Possum Mattern Studios',
+                            style: textTheme.labelSmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant.withValues(
+                                alpha: 0.75,
+                              ),
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
