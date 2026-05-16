@@ -1,4 +1,6 @@
 import 'dart:async' show Timer, unawaited;
+import 'dart:math' show max;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -26,10 +28,14 @@ class RescueFlowScreen extends StatefulWidget {
 }
 
 class _RescueFlowScreenState extends State<RescueFlowScreen> {
+  /// Minimum spacing between ritual-driven auto-advance steps (speech pacing).
+  static const int _minRitualAdvanceSec = 10;
+
   final AffirmationsService _affirmationsService = AffirmationsService();
   final PageController _pageController = PageController();
 
   RitualProvider? _ritual;
+  bool _ritualListenerAttached = false;
 
   List<Affirmation> _pack = [];
   int _currentPage = 0;
@@ -39,6 +45,11 @@ class _RescueFlowScreenState extends State<RescueFlowScreen> {
 
   /// Mirrors [HomeScreen] debounce — coalesce swipes before [TtsProvider.speak].
   Timer? _autoReadDebounce;
+
+  /// Periodic advance while ritual countdown is active.
+  Timer? _ritualAdvanceTimer;
+
+  bool _lastRitualRunning = false;
 
   @override
   void initState() {
@@ -54,6 +65,24 @@ class _RescueFlowScreenState extends State<RescueFlowScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _ritual ??= context.read<RitualProvider>();
+    _attachRitualListenerIfNeeded();
+  }
+
+  void _attachRitualListenerIfNeeded() {
+    if (_ritualListenerAttached || _ritual == null) return;
+    _lastRitualRunning = _ritual!.isRunning;
+    _ritual!.addListener(_onRitualRunningChanged);
+    _ritualListenerAttached = true;
+  }
+
+  void _onRitualRunningChanged() {
+    if (!mounted || _ritual == null) return;
+    final running = _ritual!.isRunning;
+    if (running == _lastRitualRunning) return;
+    _lastRitualRunning = running;
+    if (!running) {
+      _cancelRitualAdvanceTimerOnly();
+    }
   }
 
   Future<void> _loadPack() async {
@@ -66,6 +95,7 @@ class _RescueFlowScreenState extends State<RescueFlowScreen> {
           await _affirmationsService.getSessionPack(widget.intent.category);
       if (!mounted) return;
       _autoReadDebounce?.cancel();
+      _cancelRitualAdvanceTimerOnly();
       setState(() {
         _readyForAutoRead = false;
         _pack = pack;
@@ -87,16 +117,85 @@ class _RescueFlowScreenState extends State<RescueFlowScreen> {
   @override
   void dispose() {
     _autoReadDebounce?.cancel();
+    _cancelRitualAdvanceTimerOnly();
+    if (_ritualListenerAttached && _ritual != null) {
+      _ritual!.removeListener(_onRitualRunningChanged);
+    }
     _pageController.dispose();
     _ritual?.reset();
     super.dispose();
   }
 
-  void _onPageChanged(int index) {
-    setState(() => _currentPage = index);
+  void _cancelRitualAdvanceTimerOnly() {
+    _ritualAdvanceTimer?.cancel();
+    _ritualAdvanceTimer = null;
+  }
 
+  /// Spacing derived from ritual length ÷ affirmation count (floor pacing ~10s min).
+  int _advanceIntervalSeconds(RitualProvider ritual) {
+    final n = _pack.length;
+    if (n <= 0) return _minRitualAdvanceSec;
+    final raw = (ritual.selectedLength.seconds / n).ceil();
+    return max(_minRitualAdvanceSec, raw);
+  }
+
+  void _handleRitualStarted() {
+    if (!mounted || _pack.isEmpty) return;
+    _cancelRitualAdvanceTimerOnly();
     _autoReadDebounce?.cancel();
+    final ritual = context.read<RitualProvider>();
+    final tts = context.read<TtsProvider>();
+    if (_readyForAutoRead && tts.autoRead && tts.voiceEnabled) {
+      unawaited(tts.speak(_pack[_currentPage].text));
+    }
+    _scheduleRitualAdvanceTimer(ritual);
+  }
 
+  void _handleRitualPaused() {
+    _cancelRitualAdvanceTimerOnly();
+    _autoReadDebounce?.cancel();
+  }
+
+  void _handleRitualReset() {
+    _cancelRitualAdvanceTimerOnly();
+    _autoReadDebounce?.cancel();
+  }
+
+  void _scheduleRitualAdvanceTimer(RitualProvider ritual) {
+    _cancelRitualAdvanceTimerOnly();
+    if (!mounted || !_readyForAutoRead || _pack.isEmpty) return;
+    if (!ritual.isRunning) return;
+    final secs = _advanceIntervalSeconds(ritual);
+    _ritualAdvanceTimer = Timer.periodic(Duration(seconds: secs), (_) {
+      if (!mounted) return;
+      if (!context.read<RitualProvider>().isRunning) {
+        _cancelRitualAdvanceTimerOnly();
+        return;
+      }
+      unawaited(_advanceRitualStep());
+    });
+  }
+
+  Future<void> _advanceRitualStep() async {
+    if (!mounted || !context.read<RitualProvider>().isRunning) return;
+    if (!_readyForAutoRead || _pack.isEmpty) return;
+
+    if (_pack.length == 1) {
+      _debouncedSpeakForPage(0);
+      return;
+    }
+
+    final next = (_currentPage + 1) % _pack.length;
+    await _pageController.animateToPage(
+      next,
+      duration: const Duration(milliseconds: 340),
+      curve: Curves.easeOut,
+    );
+  }
+
+  /// Shared debounced speech used by manual swipe and ritual auto-advance.
+  void _debouncedSpeakForPage(int index) {
+    _autoReadDebounce?.cancel();
     if (!_readyForAutoRead || _pack.isEmpty) return;
     final tts = context.read<TtsProvider>();
     if (!tts.autoRead || !tts.voiceEnabled) return;
@@ -106,6 +205,11 @@ class _RescueFlowScreenState extends State<RescueFlowScreen> {
       if (index < 0 || index >= _pack.length) return;
       unawaited(tts.speak(_pack[index].text));
     });
+  }
+
+  void _onPageChanged(int index) {
+    setState(() => _currentPage = index);
+    _debouncedSpeakForPage(index);
   }
 
   @override
@@ -170,7 +274,11 @@ class _RescueFlowScreenState extends State<RescueFlowScreen> {
                                 const SizedBox(
                                   height: AppSpacing.md,
                                 ),
-                                const RitualTimerBar(),
+                                RitualTimerBar(
+                                  onRitualStarted: _handleRitualStarted,
+                                  onRitualPaused: _handleRitualPaused,
+                                  onRitualReset: _handleRitualReset,
+                                ),
                                 const SizedBox(
                                   height: AppSpacing.lg,
                                 ),

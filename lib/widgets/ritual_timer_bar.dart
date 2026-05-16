@@ -6,8 +6,19 @@ import 'package:positive_phill/services/haptics_service.dart';
 import 'package:positive_phill/theme.dart';
 
 /// Countdown controls for Rescue Flow (no gamification hooks).
+///
+/// Callbacks mirror user actions — used by Rescue Flow for guided auto-advance.
 class RitualTimerBar extends StatelessWidget {
-  const RitualTimerBar({super.key});
+  const RitualTimerBar({
+    super.key,
+    this.onRitualStarted,
+    this.onRitualPaused,
+    this.onRitualReset,
+  });
+
+  final VoidCallback? onRitualStarted;
+  final VoidCallback? onRitualPaused;
+  final VoidCallback? onRitualReset;
 
   static String _formatMmSs(int totalSeconds) {
     final m = totalSeconds ~/ 60;
@@ -71,10 +82,15 @@ class RitualTimerBar extends StatelessWidget {
                   child: FilledButton.icon(
                     onPressed: () {
                       HapticsService.feedback(FeedbackType.selection);
+                      final notifier = context.read<RitualProvider>();
                       if (ritual.isRunning) {
-                        context.read<RitualProvider>().pause();
+                        notifier.pause();
+                        onRitualPaused?.call();
                       } else {
-                        context.read<RitualProvider>().start();
+                        notifier.start();
+                        if (notifier.isRunning) {
+                          onRitualStarted?.call();
+                        }
                       }
                     },
                     icon: Icon(
@@ -89,6 +105,7 @@ class RitualTimerBar extends StatelessWidget {
                     onPressed: () {
                       HapticsService.feedback(FeedbackType.selection);
                       context.read<RitualProvider>().reset();
+                      onRitualReset?.call();
                     },
                     icon: const Icon(Icons.restart_alt),
                     label: const Text('Reset'),
