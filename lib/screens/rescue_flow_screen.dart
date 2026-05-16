@@ -126,25 +126,21 @@ class _RescueFlowScreenState extends State<RescueFlowScreen> {
                       )
                     : Center(
                         child: ConstrainedBox(
-                          constraints:
-                              const BoxConstraints(maxWidth: 720),
+                          constraints: const BoxConstraints(maxWidth: 720),
                           child: SingleChildScrollView(
                             padding: const EdgeInsets.all(
                               AppSpacing.lg,
                             ),
                             child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.stretch,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 Text(
                                   widget.intent.supportLine,
                                   textAlign: TextAlign.center,
-                                  style: textTheme.titleSmall
-                                      ?.copyWith(
-                                        color:
-                                            colorScheme.onSurfaceVariant,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                                  style: textTheme.titleSmall?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                                 const SizedBox(
                                   height: AppSpacing.md,
@@ -157,18 +153,15 @@ class _RescueFlowScreenState extends State<RescueFlowScreen> {
                                   Text(
                                     'No affirmations in this category yet.',
                                     textAlign: TextAlign.center,
-                                    style:
-                                        textTheme.bodyMedium?.copyWith(
-                                          color:
-                                              colorScheme.onSurfaceVariant,
-                                        ),
+                                    style: textTheme.bodyMedium?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
                                   )
                                 else ...[
                                   SizedBox(
                                     height: 300,
                                     child: ScrollConfiguration(
-                                      behavior:
-                                          const RescueScrollBehavior(),
+                                      behavior: const RescueScrollBehavior(),
                                       child: PageView.builder(
                                         controller: _pageController,
                                         itemCount: _pack.length,
@@ -176,10 +169,8 @@ class _RescueFlowScreenState extends State<RescueFlowScreen> {
                                         itemBuilder: (context, index) {
                                           return AffirmationCard(
                                             affirmation: _pack[index],
-                                            textBacklightEnabled:
-                                                textBacklight,
-                                            shareSubtitle:
-                                                category.displayName,
+                                            textBacklightEnabled: textBacklight,
+                                            shareSubtitle: category.displayName,
                                           );
                                         },
                                       ),
@@ -195,8 +186,7 @@ class _RescueFlowScreenState extends State<RescueFlowScreen> {
                                       children: List.generate(
                                         _pack.length,
                                         (i) => Container(
-                                          margin:
-                                              const EdgeInsets.symmetric(
+                                          margin: const EdgeInsets.symmetric(
                                             horizontal: 4,
                                           ),
                                           width: 8,
