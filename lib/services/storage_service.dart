@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:positive_phill/models/background_gradient_preset.dart';
+import 'package:positive_phill/models/board_video_preset.dart';
 import 'package:positive_phill/models/user_progress.dart';
 
 class StorageService {
@@ -24,6 +25,7 @@ class StorageService {
   static const String _dailyMoodDateKey = 'daily_mood_date';
   static const String _dailyQuestsKey = 'daily_quests';
   static const String _backgroundGradientPresetKey = 'bg_gradient_preset';
+  static const String _boardVideoPresetKey = 'board_video_preset';
 
   /// Last chosen ambient loop id (`SanctuarySoundscape.storageId`).
   /// Playing state is not persisted.
@@ -38,6 +40,9 @@ class StorageService {
   static final ValueNotifier<bool> textBacklightEnabled = ValueNotifier<bool>(true);
   static final ValueNotifier<BackgroundGradientPreset> backgroundGradientPreset =
       ValueNotifier<BackgroundGradientPreset>(BackgroundGradientPreset.none);
+
+  static final ValueNotifier<BoardVideoPreset> boardVideoPreset =
+      ValueNotifier<BoardVideoPreset>(BoardVideoPreset.none);
 
   Future<UserProgress> loadUserProgress() async {
     try {
@@ -198,6 +203,40 @@ class StorageService {
       backgroundGradientPreset.value = preset;
     } catch (e) {
       debugPrint('Failed to save background gradient preset: $e');
+    }
+  }
+
+  Future<BoardVideoPreset> getBoardVideoPreset() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_boardVideoPresetKey);
+      final preset = BoardVideoPreset.fromStorage(raw);
+      final invalidStored = raw != null &&
+          raw.trim().isNotEmpty &&
+          preset == BoardVideoPreset.none;
+      if (invalidStored) {
+        await prefs.remove(_boardVideoPresetKey);
+      }
+      boardVideoPreset.value = preset;
+      return preset;
+    } catch (e) {
+      debugPrint('Failed to load board_video_preset: $e');
+      boardVideoPreset.value = BoardVideoPreset.none;
+      return BoardVideoPreset.none;
+    }
+  }
+
+  Future<void> setBoardVideoPreset(BoardVideoPreset preset) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (preset == BoardVideoPreset.none) {
+        await prefs.remove(_boardVideoPresetKey);
+      } else {
+        await prefs.setString(_boardVideoPresetKey, preset.storageName);
+      }
+      boardVideoPreset.value = preset;
+    } catch (e) {
+      debugPrint('Failed to save board_video_preset: $e');
     }
   }
 

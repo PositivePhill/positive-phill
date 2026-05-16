@@ -12,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:positive_phill/models/background_gradient_preset.dart';
+import 'package:positive_phill/models/board_video_preset.dart';
 import 'package:positive_phill/platform/background_image.dart';
 import 'package:positive_phill/providers/quest_provider.dart';
 import 'package:positive_phill/providers/theme_provider.dart';
@@ -43,6 +44,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _textBacklightEnabled = true;
   bool _zenModeEnabled = false;
   BackgroundGradientPreset _bgPreset = BackgroundGradientPreset.none;
+  BoardVideoPreset _boardVideoPreset = BoardVideoPreset.none;
 
   @override
   void initState() {
@@ -53,11 +55,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadTextBacklight();
     _loadZenMode();
     unawaited(_loadBackgroundPreset());
+    unawaited(_loadBoardVideoPreset());
   }
 
   Future<void> _loadBackgroundPreset() async {
     final p = await _storage.getBackgroundGradientPreset();
     if (mounted) setState(() => _bgPreset = p);
+  }
+
+  Future<void> _loadBoardVideoPreset() async {
+    final v = await _storage.getBoardVideoPreset();
+    if (mounted) setState(() => _boardVideoPreset = v);
   }
 
   Future<void> _loadTextBacklight() async {
@@ -395,6 +403,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
+  String _appearanceBackgroundSubtitle() {
+    if (_boardVideoPreset != BoardVideoPreset.none) {
+      return '${_boardVideoPreset.displayName} · ${_bgPreset.displayName}';
+    }
+    return _bgPreset.displayName;
+  }
+
   Widget _sectionHeader(BuildContext context, String title) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
@@ -494,7 +509,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ListTile(
                 leading: Icon(Icons.gradient, color: colorScheme.primary),
                 title: const Text('Background Style'),
-                subtitle: Text(_bgPreset.displayName),
+                subtitle: Text(_appearanceBackgroundSubtitle()),
                 trailing: const Icon(Icons.chevron_right, size: 20),
                 onTap: () async {
                   HapticsService.feedback(FeedbackType.selection);
@@ -504,13 +519,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onPickImage: _pickBackgroundImage,
                   );
                   final p = await _storage.getBackgroundGradientPreset();
-                  if (mounted) setState(() => _bgPreset = p);
+                  final vid = await _storage.getBoardVideoPreset();
+                  if (mounted) {
+                    setState(() {
+                      _bgPreset = p;
+                      _boardVideoPreset = vid;
+                    });
+                  }
                 },
               ),
               ListTile(
                 leading: Icon(Icons.wallpaper, color: colorScheme.primary),
                 title: const Text('Inspirational Board'),
-                subtitle: const Text('Choose a background image'),
+                subtitle: Text(
+                  _boardVideoPreset == BoardVideoPreset.none
+                      ? 'Choose an inspirational photo'
+                      : 'Photo shows beneath video until it loads, or clear video',
+                ),
                 trailing: (_customBgPath != null || _customBgWeb != null)
                     ? IconButton(
                         icon: Icon(Icons.close, color: colorScheme.primary),
