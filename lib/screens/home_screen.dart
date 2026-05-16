@@ -25,6 +25,7 @@ import 'package:positive_phill/widgets/daily_quest_card.dart';
 import 'package:positive_phill/widgets/level_up_toast.dart';
 import 'package:positive_phill/widgets/mood_bar.dart';
 import 'package:positive_phill/widgets/streak_display.dart';
+import 'package:positive_phill/widgets/sos_entry_card.dart';
 import 'package:positive_phill/widgets/streak_heatmap.dart';
 import 'package:positive_phill/widgets/xp_progress_bar.dart';
 
@@ -472,6 +473,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                         ),
                                       ],
                                     ),
+
+                                    if (!_zenMode) ...[
+                                      const SizedBox(height: AppSpacing.md),
+                                      SosEntryCard(
+                                        textShadows: textBacklightShadows,
+                                      ),
+                                    ],
 
                                     if (!_zenMode &&
                                         !hasCustomBg &&
