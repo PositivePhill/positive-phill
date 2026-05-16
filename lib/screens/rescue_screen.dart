@@ -64,7 +64,7 @@ class RescueScreen extends StatelessWidget {
                         intent: intent,
                         onTap: () {
                           HapticsService.feedback(FeedbackType.selection);
-                          context.push(AppRoutes.rescueFlow, extra: intent);
+                          context.push(AppRoutes.rescueFlowPath(intent));
                         },
                       ),
                     ),

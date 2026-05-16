@@ -6,7 +6,33 @@ enum RescueIntent {
   hype,
   focus,
   healing,
-  confidence,
+  confidence;
+
+  /// Stable URL path segment (deeplink / refresh safe).
+  String get id {
+    switch (this) {
+      case RescueIntent.calm:
+        return 'calm';
+      case RescueIntent.hype:
+        return 'hype';
+      case RescueIntent.focus:
+        return 'focus';
+      case RescueIntent.healing:
+        return 'healing';
+      case RescueIntent.confidence:
+        return 'confidence';
+    }
+  }
+
+  /// Parses [raw] from route path; [calm] for null, empty, or unknown.
+  static RescueIntent fromId(String? raw) {
+    if (raw == null || raw.isEmpty) return RescueIntent.calm;
+    final n = raw.trim();
+    for (final v in RescueIntent.values) {
+      if (v.id == n) return v;
+    }
+    return RescueIntent.calm;
+  }
 }
 
 extension RescueIntentX on RescueIntent {

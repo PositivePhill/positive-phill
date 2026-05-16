@@ -52,9 +52,8 @@ class AppRouter {
         path: AppRoutes.rescueFlow,
         name: 'rescueFlow',
         pageBuilder: (context, state) {
-          final extra = state.extra;
-          final intent =
-              extra is RescueIntent ? extra : RescueIntent.calm;
+          final raw = state.pathParameters['intent'];
+          final intent = RescueIntent.fromId(raw);
           return MaterialPage(
             child: RescueFlowScreen(intent: intent),
           );
@@ -78,5 +77,10 @@ class AppRoutes {
   static const String webview = '/webview';
   static const String favorites = '/favorites';
   static const String rescue = '/rescue';
-  static const String rescueFlow = '/rescue/flow';
+  /// go_router pattern — must stay before [rescue] if order matters for matching.
+  static const String rescueFlow = '/rescue/flow/:intent';
+
+  /// Concrete path for navigation (deeplink / refresh safe; no [extra]).
+  static String rescueFlowPath(RescueIntent intent) =>
+      '/rescue/flow/${intent.id}';
 }

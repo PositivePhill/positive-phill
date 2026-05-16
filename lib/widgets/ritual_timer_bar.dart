@@ -1,6 +1,3 @@
-// ignore: unnecessary_import -- Explicit dart:ui for FontFeature (tooling/Copilot parity).
-import 'dart:ui' show FontFeature;
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:positive_phill/models/ritual_length.dart';

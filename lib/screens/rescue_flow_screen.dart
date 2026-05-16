@@ -194,9 +194,7 @@ class _RescueFlowScreenState extends State<RescueFlowScreen> {
                                               mainAxisAlignment:
                                                   MainAxisAlignment.center,
                                               children: List.generate(
-                                                _pack.length > 10
-                                                    ? 10
-                                                    : _pack.length,
+                                                _pack.length,
                                                 (i) => Container(
                                                   margin: const EdgeInsets
                                                       .symmetric(
