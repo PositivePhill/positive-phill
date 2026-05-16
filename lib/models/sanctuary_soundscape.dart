@@ -80,29 +80,36 @@ enum SanctuarySoundscape {
     }
   }
 
-  /// Paths for [AssetSource]: relative to the Flutter asset bundle (no leading `assets/`).
-  String get assetPath {
+  /// File name segment for bundled MP3s (matches `audio/<filename>` in [assetPath]).
+  String get audioFilename {
     switch (this) {
       case SanctuarySoundscape.rainfall:
-        return 'audio/rainfall_loop.mp3';
+        return 'rainfall_loop.mp3';
       case SanctuarySoundscape.riverFlow:
-        return 'audio/river_flow_loop.mp3';
+        return 'river_flow_loop.mp3';
       case SanctuarySoundscape.oceanWaves:
-        return 'audio/ocean_waves_loop.mp3';
+        return 'ocean_waves_loop.mp3';
       case SanctuarySoundscape.forestBirds:
-        return 'audio/forest_birds_loop.mp3';
+        return 'forest_birds_loop.mp3';
       case SanctuarySoundscape.campfire:
-        return 'audio/campfire_loop.mp3';
+        return 'campfire_loop.mp3';
       case SanctuarySoundscape.fishingLake:
-        return 'audio/fishing_lake_loop.mp3';
+        return 'fishing_lake_loop.mp3';
       case SanctuarySoundscape.softWind:
-        return 'audio/soft_wind_loop.mp3';
+        return 'soft_wind_loop.mp3';
       case SanctuarySoundscape.chillPad:
-        return 'audio/chill_pad_loop.mp3';
+        return 'chill_pad_loop.mp3';
       case SanctuarySoundscape.lightThunder:
-        return 'audio/light_thunder_loop.mp3';
+        return 'light_thunder_loop.mp3';
     }
   }
+
+  /// Flutter Web emitted path for &lt;audio&gt; (`<base href>`-relative).
+  String get webAssetUrl => 'assets/assets/audio/$audioFilename';
+
+  /// Paths for [AssetSource] on mobile/desktop (relative to Flutter asset bundle;
+  /// no leading `assets/` package prefix).
+  String get assetPath => 'audio/$audioFilename';
 
   /// Unknown id → treat as none (no persisted selection).
   static SanctuarySoundscape? fromStorageId(String? raw) {
