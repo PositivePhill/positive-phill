@@ -77,7 +77,10 @@ class AppRoutes {
   static const String webview = '/webview';
   static const String favorites = '/favorites';
   static const String rescue = '/rescue';
-  /// go_router pattern — must stay before [rescue] if order matters for matching.
+  /// go_router path pattern for `/rescue/flow/:intent`.
+  ///
+  /// In [AppRouter.router]'s `routes` list, register this [GoRoute] before the
+  /// `/rescue` one so the more specific `/rescue/flow/:intent` wins over `/rescue`.
   static const String rescueFlow = '/rescue/flow/:intent';
 
   /// Concrete path for navigation (deeplink / refresh safe; no [extra]).

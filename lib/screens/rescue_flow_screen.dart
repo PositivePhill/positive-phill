@@ -124,104 +124,102 @@ class _RescueFlowScreenState extends State<RescueFlowScreen> {
                           ),
                         ),
                       )
-                    : LayoutBuilder(
-                            builder: (context, constraints) {
-                              return Center(
-                                child: ConstrainedBox(
-                                  constraints:
-                                      const BoxConstraints(maxWidth: 720),
-                                  child: SingleChildScrollView(
-                                    padding: const EdgeInsets.all(
-                                      AppSpacing.lg,
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      children: [
-                                        Text(
-                                          widget.intent.supportLine,
-                                          textAlign: TextAlign.center,
-                                          style: textTheme.titleSmall
-                                              ?.copyWith(
-                                            color:
-                                                colorScheme.onSurfaceVariant,
-                                            fontWeight: FontWeight.w500,
-                                          ),
+                    : Center(
+                        child: ConstrainedBox(
+                          constraints:
+                              const BoxConstraints(maxWidth: 720),
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.all(
+                              AppSpacing.lg,
+                            ),
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.stretch,
+                              children: [
+                                Text(
+                                  widget.intent.supportLine,
+                                  textAlign: TextAlign.center,
+                                  style: textTheme.titleSmall
+                                      ?.copyWith(
+                                        color:
+                                            colorScheme.onSurfaceVariant,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                ),
+                                const SizedBox(
+                                  height: AppSpacing.md,
+                                ),
+                                const RitualTimerBar(),
+                                const SizedBox(
+                                  height: AppSpacing.lg,
+                                ),
+                                if (_pack.isEmpty)
+                                  Text(
+                                    'No affirmations in this category yet.',
+                                    textAlign: TextAlign.center,
+                                    style:
+                                        textTheme.bodyMedium?.copyWith(
+                                          color:
+                                              colorScheme.onSurfaceVariant,
                                         ),
-                                        const SizedBox(
-                                          height: AppSpacing.md,
-                                        ),
-                                        const RitualTimerBar(),
-                                        const SizedBox(
-                                          height: AppSpacing.lg,
-                                        ),
-                                        if (_pack.isEmpty)
-                                          Text(
-                                            'No affirmations in this category yet.',
-                                            textAlign: TextAlign.center,
-                                            style: textTheme.bodyMedium?.copyWith(
-                                              color: colorScheme.onSurfaceVariant,
-                                            ),
-                                          )
-                                        else ...[
-                                          SizedBox(
-                                            height: 300,
-                                            child: ScrollConfiguration(
-                                              behavior:
-                                                  const RescueScrollBehavior(),
-                                              child: PageView.builder(
-                                                controller: _pageController,
-                                                itemCount: _pack.length,
-                                                onPageChanged: _onPageChanged,
-                                                itemBuilder: (context, index) {
-                                                  return AffirmationCard(
-                                                    affirmation: _pack[index],
-                                                    textBacklightEnabled:
-                                                        textBacklight,
-                                                    shareSubtitle:
-                                                        category.displayName,
-                                                  );
-                                                },
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(
-                                            height: AppSpacing.sm,
-                                          ),
-                                          Center(
-                                            child: Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: List.generate(
-                                                _pack.length,
-                                                (i) => Container(
-                                                  margin: const EdgeInsets
-                                                      .symmetric(
-                                                    horizontal: 4,
-                                                  ),
-                                                  width: 8,
-                                                  height: 8,
-                                                  decoration: BoxDecoration(
-                                                    shape: BoxShape.circle,
-                                                    color: _currentPage == i
-                                                        ? colorScheme.primary
-                                                        : colorScheme.outline
-                                                            .withValues(
-                                                            alpha: 0.3,
-                                                          ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ],
+                                  )
+                                else ...[
+                                  SizedBox(
+                                    height: 300,
+                                    child: ScrollConfiguration(
+                                      behavior:
+                                          const RescueScrollBehavior(),
+                                      child: PageView.builder(
+                                        controller: _pageController,
+                                        itemCount: _pack.length,
+                                        onPageChanged: _onPageChanged,
+                                        itemBuilder: (context, index) {
+                                          return AffirmationCard(
+                                            affirmation: _pack[index],
+                                            textBacklightEnabled:
+                                                textBacklight,
+                                            shareSubtitle:
+                                                category.displayName,
+                                          );
+                                        },
+                                      ),
                                     ),
                                   ),
-                                ),
-                              );
-                            },
+                                  const SizedBox(
+                                    height: AppSpacing.sm,
+                                  ),
+                                  Center(
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: List.generate(
+                                        _pack.length,
+                                        (i) => Container(
+                                          margin:
+                                              const EdgeInsets.symmetric(
+                                            horizontal: 4,
+                                          ),
+                                          width: 8,
+                                          height: 8,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: _currentPage == i
+                                                ? colorScheme.primary
+                                                : colorScheme.outline
+                                                    .withValues(
+                                                    alpha: 0.3,
+                                                  ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
+                        ),
+                      ),
           ),
         );
       },
