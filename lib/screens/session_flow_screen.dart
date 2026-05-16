@@ -317,6 +317,9 @@ class SessionContent extends StatelessWidget {
           AffirmationCard(
             affirmation: affirmation,
             showActions: true,
+            shareSubtitle: affirmation.categories.isNotEmpty
+                ? affirmation.categories.first.displayName
+                : null,
           ),
           const Spacer(),
           SizedBox(

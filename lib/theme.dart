@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:positive_phill/models/accent_preset.dart';
 
 class AppSpacing {
   // Spacing values
@@ -260,6 +261,46 @@ ThemeData get darkTheme => ThemeData(
   ),
   textTheme: _buildTextTheme(Brightness.dark),
 );
+
+/// Hybrid accent: surfaces, error, outlines stay from v1.0 [base]; primary rails from seed.
+ColorScheme colorSchemeWithAccent(
+  ColorScheme base,
+  AccentPreset accent,
+  Brightness brightness,
+) {
+  if (accent == AccentPreset.lavender) return base;
+  final seeded =
+      ColorScheme.fromSeed(seedColor: accent.seedColor, brightness: brightness);
+  return base.copyWith(
+    primary: seeded.primary,
+    onPrimary: seeded.onPrimary,
+    primaryContainer: seeded.primaryContainer,
+    onPrimaryContainer: seeded.onPrimaryContainer,
+    secondary: seeded.secondary,
+    onSecondary: seeded.onSecondary,
+    secondaryContainer: seeded.secondaryContainer,
+    onSecondaryContainer: seeded.onSecondaryContainer,
+    tertiary: seeded.tertiary,
+    onTertiary: seeded.onTertiary,
+    tertiaryContainer: seeded.tertiaryContainer,
+    onTertiaryContainer: seeded.onTertiaryContainer,
+    inversePrimary: seeded.inversePrimary,
+  );
+}
+
+/// Light theme for [accent]. Lavender matches v1.0 [lightTheme] exactly.
+ThemeData lightThemeForAccent(AccentPreset accent) {
+  final baseScheme = lightTheme.colorScheme;
+  final scheme = colorSchemeWithAccent(baseScheme, accent, Brightness.light);
+  return lightTheme.copyWith(colorScheme: scheme);
+}
+
+/// Dark theme for [accent]. Lavender matches v1.0 [darkTheme] exactly.
+ThemeData darkThemeForAccent(AccentPreset accent) {
+  final baseScheme = darkTheme.colorScheme;
+  final scheme = colorSchemeWithAccent(baseScheme, accent, Brightness.dark);
+  return darkTheme.copyWith(colorScheme: scheme);
+}
 
 /// Build text theme using Inter font family
 TextTheme _buildTextTheme(Brightness brightness) {

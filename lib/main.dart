@@ -6,9 +6,8 @@ import 'package:positive_phill/providers/theme_provider.dart';
 import 'package:positive_phill/providers/quest_provider.dart';
 import 'package:positive_phill/providers/tts_provider.dart';
 import 'package:positive_phill/providers/user_provider.dart';
-import 'package:positive_phill/theme.dart';
-import 'package:positive_phill/services/affirmations_service.dart';
 import 'package:positive_phill/nav.dart';
+import 'package:positive_phill/services/affirmations_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,8 +42,8 @@ class MyApp extends StatelessWidget {
           return MaterialApp.router(
             title: 'Positive Phill',
             debugShowCheckedModeBanner: false,
-            theme: lightTheme,
-            darkTheme: darkTheme,
+            theme: themeProvider.lightThemeData,
+            darkTheme: themeProvider.darkThemeData,
             themeMode: themeProvider.themeMode,
             routerConfig: AppRouter.router,
           );
