@@ -1,3 +1,4 @@
+import 'dart:async' show Timer, unawaited;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:positive_phill/models/affirmation.dart';
 import 'package:positive_phill/models/rescue_intent.dart';
 import 'package:positive_phill/providers/ritual_provider.dart';
+import 'package:positive_phill/providers/tts_provider.dart';
 import 'package:positive_phill/services/affirmations_service.dart';
 import 'package:positive_phill/services/storage_service.dart';
 import 'package:positive_phill/theme.dart';
@@ -33,6 +35,10 @@ class _RescueFlowScreenState extends State<RescueFlowScreen> {
   int _currentPage = 0;
   bool _loading = true;
   String? _loadError;
+  bool _readyForAutoRead = false;
+
+  /// Mirrors [HomeScreen] debounce — coalesce swipes before [TtsProvider.speak].
+  Timer? _autoReadDebounce;
 
   @override
   void initState() {
@@ -59,9 +65,15 @@ class _RescueFlowScreenState extends State<RescueFlowScreen> {
       final pack =
           await _affirmationsService.getSessionPack(widget.intent.category);
       if (!mounted) return;
+      _autoReadDebounce?.cancel();
       setState(() {
+        _readyForAutoRead = false;
         _pack = pack;
         _loading = false;
+      });
+      // Arm after layout so [PageView] does not emit a phantom first-page callback.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _readyForAutoRead = true);
       });
     } catch (e) {
       if (!mounted) return;
@@ -74,6 +86,7 @@ class _RescueFlowScreenState extends State<RescueFlowScreen> {
 
   @override
   void dispose() {
+    _autoReadDebounce?.cancel();
     _pageController.dispose();
     _ritual?.reset();
     super.dispose();
@@ -81,6 +94,18 @@ class _RescueFlowScreenState extends State<RescueFlowScreen> {
 
   void _onPageChanged(int index) {
     setState(() => _currentPage = index);
+
+    _autoReadDebounce?.cancel();
+
+    if (!_readyForAutoRead || _pack.isEmpty) return;
+    final tts = context.read<TtsProvider>();
+    if (!tts.autoRead || !tts.voiceEnabled) return;
+
+    _autoReadDebounce = Timer(const Duration(milliseconds: 180), () {
+      if (!mounted) return;
+      if (index < 0 || index >= _pack.length) return;
+      unawaited(tts.speak(_pack[index].text));
+    });
   }
 
   @override
