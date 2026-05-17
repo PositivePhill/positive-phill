@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -49,7 +49,9 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentPage = 0;
   bool _zenMode = false;
   bool _readyForAutoRead = false;
-  bool _videoBackdropVisible = false;
+
+  /// Drives readability scrim while a board video layer is actually presenting.
+  final ValueNotifier<bool> _boardVideoPresenting = ValueNotifier<bool>(false);
 
   // Debounce timer for auto-read on PageView swipes. Coalesces fast swipes
   // and gives TtsProvider time to settle between page changes.
@@ -89,8 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onLevelUp() {
     if (!mounted) return;
-    final level =
-        context.read<UserProvider>().levelUpNotifier.value;
+    final level = context.read<UserProvider>().levelUpNotifier.value;
     if (level > 0) {
       LevelUpToast.show(context, level);
     }
@@ -102,6 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _autoReadDebounce?.cancel();
     _pageController.dispose();
     _adsService.dispose();
+    _boardVideoPresenting.dispose();
     super.dispose();
   }
 
@@ -210,8 +212,8 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     setState(() {
       _selectedCategory = category;
-      _dailyTheme = _affirmationsService.getRandomMessage(
-          category: category, seed: seed);
+      _dailyTheme =
+          _affirmationsService.getRandomMessage(category: category, seed: seed);
       _currentPack = pack;
       _currentPage = 0;
     });
@@ -233,8 +235,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Debounce so the previous TTS cancel callback has time to flush before
     // we issue a new speak() — fixes auto-read missing on rapid swipes.
-    _autoReadDebounce =
-        Timer(const Duration(milliseconds: 180), () {
+    _autoReadDebounce = Timer(const Duration(milliseconds: 180), () {
       if (!mounted) return;
       if (index < 0 || index >= _currentPack.length) return;
       unawaited(tts.speak(_currentPack[index].text));
@@ -294,6 +295,15 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _onBoardVideoPresentationChanged(bool visible) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_boardVideoPresenting.value != visible) {
+        _boardVideoPresenting.value = visible;
+      }
+    });
+  }
+
   // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
@@ -310,601 +320,587 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return Scaffold(
-      body: AnimatedBuilder(
-          animation: Listenable.merge([
-            StorageService.customBackgroundPath,
-            StorageService.customBackgroundWeb,
-            StorageService.customBackgroundAlignment,
-            StorageService.textBacklightEnabled,
-            StorageService.backgroundGradientPreset,
-            StorageService.boardVideoPreset,
-          ]),
-          builder: (context, _) {
-            final bgPath = StorageService.customBackgroundPath.value;
-            final bgWeb = StorageService.customBackgroundWeb.value;
-            final align = StorageService.customBackgroundAlignment.value;
-            final textBacklight = StorageService.textBacklightEnabled.value;
-            final bgPreset = StorageService.backgroundGradientPreset.value;
-            final videoChosen =
-                StorageService.boardVideoPreset.value != BoardVideoPreset.none;
+      body: ValueListenableBuilder<BoardVideoPreset>(
+        valueListenable: StorageService.boardVideoPreset,
+        builder: (context, videoPreset, _) {
+          if (kDebugMode && videoPreset != BoardVideoPreset.none) {
+            debugPrint(
+              'Home: board video preset selected = ${videoPreset.name}',
+            );
+          }
 
-            Widget bgWidget = ColoredBox(
-                color: Theme.of(context).scaffoldBackgroundColor);
-            bool hasCustomBg = false;
-            if (kIsWeb) {
-              if (bgWeb != null && bgWeb.isNotEmpty) {
-                try {
-                  final bytes = base64Decode(bgWeb);
-                  bgWidget = Image.memory(
-                    bytes,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
-                    alignment: align,
-                  );
+          if (videoPreset == BoardVideoPreset.none &&
+              _boardVideoPresenting.value) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              if (_boardVideoPresenting.value) {
+                _boardVideoPresenting.value = false;
+              }
+            });
+          }
+
+          return AnimatedBuilder(
+            animation: Listenable.merge([
+              StorageService.customBackgroundPath,
+              StorageService.customBackgroundWeb,
+              StorageService.customBackgroundAlignment,
+              StorageService.textBacklightEnabled,
+              StorageService.backgroundGradientPreset,
+              _boardVideoPresenting,
+            ]),
+            builder: (context, _) {
+              final bgPath = StorageService.customBackgroundPath.value;
+              final bgWeb = StorageService.customBackgroundWeb.value;
+              final align = StorageService.customBackgroundAlignment.value;
+              final textBacklight = StorageService.textBacklightEnabled.value;
+              final bgPreset = StorageService.backgroundGradientPreset.value;
+              final videoChosen = videoPreset != BoardVideoPreset.none;
+
+              Widget bgWidget =
+                  ColoredBox(color: Theme.of(context).scaffoldBackgroundColor);
+              bool hasCustomBg = false;
+              if (kIsWeb) {
+                if (bgWeb != null && bgWeb.isNotEmpty) {
+                  try {
+                    final bytes = base64Decode(bgWeb);
+                    bgWidget = Image.memory(
+                      bytes,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                      alignment: align,
+                    );
+                    hasCustomBg = true;
+                  } catch (_) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      unawaited(StorageService().setCustomBackgroundWeb(null));
+                    });
+                  }
+                }
+              } else {
+                if (bgPath != null && bgPath.isNotEmpty) {
+                  bgWidget =
+                      BackgroundImageBuilder.build(bgPath, alignment: align);
                   hasCustomBg = true;
-                } catch (_) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    unawaited(StorageService().setCustomBackgroundWeb(null));
-                  });
                 }
               }
-            } else {
-              if (bgPath != null && bgPath.isNotEmpty) {
-                bgWidget =
-                    BackgroundImageBuilder.build(bgPath, alignment: align);
-                hasCustomBg = true;
+
+              if (!hasCustomBg) {
+                final g =
+                    bgPreset.linearGradientFor(Theme.of(context).brightness);
+                if (g != null) {
+                  bgWidget = Container(
+                    width: double.infinity,
+                    height: double.infinity,
+                    decoration: BoxDecoration(gradient: g),
+                  );
+                }
               }
-            }
 
-            if (!hasCustomBg) {
-              final g = bgPreset.linearGradientFor(
-                  Theme.of(context).brightness);
-              if (g != null) {
-                bgWidget = Container(
-                  width: double.infinity,
-                  height: double.infinity,
-                  decoration: BoxDecoration(gradient: g),
-                );
-              }
-            }
+              final needsReadabilityScrim =
+                  hasCustomBg || (videoChosen && _boardVideoPresenting.value);
+              final suppressPlainBackgroundTip = hasCustomBg || videoChosen;
 
-            final needsReadabilityScrim =
-                hasCustomBg || (videoChosen && _videoBackdropVisible);
-            final suppressPlainBackgroundTip =
-                hasCustomBg || videoChosen;
+              final textBacklightShadows = textBacklight
+                  ? [
+                      Shadow(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        offset: const Offset(1, 1),
+                        blurRadius: 4,
+                      ),
+                    ]
+                  : null;
 
-            final videoPresetActive = StorageService.boardVideoPreset.value;
-
-            final textBacklightShadows = textBacklight
-                ? [
-                    Shadow(
-                      color: Colors.black.withValues(alpha: 0.6),
-                      offset: const Offset(1, 1),
-                      blurRadius: 4,
+              return Stack(
+                children: [
+                  Positioned.fill(child: bgWidget),
+                  if (videoChosen)
+                    Positioned.fill(
+                      child: BoardVideoBackground(
+                        key: ValueKey('board-video-${videoPreset.name}'),
+                        preset: videoPreset,
+                        onFatalError: () {
+                          unawaited(
+                            StorageService()
+                                .setBoardVideoPreset(BoardVideoPreset.none),
+                          );
+                        },
+                        onPresentationChanged: _onBoardVideoPresentationChanged,
+                      ),
                     ),
-                  ]
-                : null;
-
-            return Stack(
-              children: [
-                Positioned.fill(child: bgWidget),
-                if (videoChosen)
-                  Positioned.fill(
-                    child: BoardVideoBackground(
-                      key: ValueKey(videoPresetActive.storageName),
-                      preset: videoPresetActive,
-                      onFatalError: () {
-                        unawaited(
-                          StorageService()
-                              .setBoardVideoPreset(BoardVideoPreset.none),
-                        );
-                      },
-                      onPresentationChanged: (visible) {
-                        if (!mounted) return;
-                        setState(() => _videoBackdropVisible = visible);
-                      },
-                    ),
-                  ),
-                if (needsReadabilityScrim)
-                  Positioned.fill(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.black.withValues(alpha: 0.5),
-                            Colors.black.withValues(alpha: 0.72),
-                          ],
+                  if (needsReadabilityScrim)
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: 0.5),
+                              Colors.black.withValues(alpha: 0.72),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                SafeArea(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final w = constraints.maxWidth;
-                      final lane = w < 600
-                          ? w
-                          : w < 1024
-                              ? 720.0
-                              : w < 1440
-                                  ? 840.0
-                                  : 960.0;
-                      return Center(
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(maxWidth: lane),
-                          child: Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 16),
-                            child: SingleChildScrollView(
-                              child: Padding(
-                                padding:
-                                    const EdgeInsets.all(AppSpacing.lg),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    // ── 1. Header ─────────────────────
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Center(
-                                            child: FittedBox(
-                                              fit: BoxFit.scaleDown,
-                                              alignment: Alignment.center,
-                                              child: Text(
-                                                'Positive Phill',
-                                                maxLines: 1,
-                                                softWrap: false,
-                                                overflow:
-                                                    TextOverflow.visible,
-                                                style: textTheme
-                                                    .headlineMedium
-                                                    ?.copyWith(
-                                                  color:
-                                                      colorScheme.primary,
-                                                  fontWeight:
-                                                      FontWeight.bold,
-                                                  shadows:
-                                                      textBacklightShadows,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        IconButton(
-                                          onPressed: () =>
-                                              context.push('/favorites'),
-                                          icon: Icon(
-                                              Icons.favorite_border,
-                                              color:
-                                                  colorScheme.onSurface),
-                                          tooltip: 'Saved Affirmations',
-                                        ),
-                                        IconButton(
-                                          onPressed: _toggleZenMode,
-                                          icon: Icon(
-                                            _zenMode
-                                                ? Icons.self_improvement
-                                                : Icons
-                                                    .self_improvement_outlined,
-                                            color: _zenMode
-                                                ? colorScheme.primary
-                                                : colorScheme.onSurface,
-                                          ),
-                                          tooltip: _zenMode
-                                              ? 'Exit Focus Mode'
-                                              : 'Enter Focus Mode',
-                                        ),
-                                        IconButton(
-                                          onPressed: () =>
-                                              context.push('/settings'),
-                                          icon: Icon(Icons.settings,
-                                              color:
-                                                  colorScheme.onSurface),
-                                          tooltip: 'Settings',
-                                        ),
-                                      ],
-                                    ),
-
-                                    if (!_zenMode) ...[
-                                      const SizedBox(height: AppSpacing.md),
-                                      SosEntryCard(
-                                        textShadows: textBacklightShadows,
-                                      ),
-                                    ],
-
-                                    if (!_zenMode &&
-                                        !suppressPlainBackgroundTip &&
-                                        bgPreset ==
-                                            BackgroundGradientPreset
-                                                .none) ...[
-                                      const SizedBox(height: AppSpacing.sm),
-                                      Material(
-                                        color: colorScheme
-                                            .surfaceContainerHighest
-                                            .withValues(alpha: 0.92),
-                                        borderRadius: BorderRadius.circular(
-                                            AppRadius.md),
-                                        child: InkWell(
-                                          borderRadius: BorderRadius.circular(
-                                              AppRadius.md),
-                                          onTap: () {
-                                            HapticsService.feedback(
-                                                FeedbackType.selection);
-                                            context.push(AppRoutes.settings);
-                                          },
-                                          child: Padding(
-                                            padding: const EdgeInsets
-                                                .symmetric(
-                                              horizontal: 16,
-                                              vertical: 12,
-                                            ),
-                                            child: Row(
-                                              children: [
-                                                Icon(
-                                                  Icons.wallpaper_outlined,
-                                                  color: colorScheme.primary,
-                                                ),
-                                                const SizedBox(width: 12),
-                                                Expanded(
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      Text(
-                                                        'Make this screen yours',
-                                                        style: textTheme
-                                                            .titleSmall
-                                                            ?.copyWith(
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          color: colorScheme
-                                                              .onSurface,
-                                                          shadows:
-                                                              textBacklightShadows,
-                                                        ),
-                                                      ),
-                                                      const SizedBox(
-                                                          height: 2),
-                                                      Text(
-                                                        'Add a background image',
-                                                        style: textTheme
-                                                            .bodySmall
-                                                            ?.copyWith(
-                                                          color: colorScheme
-                                                              .onSurfaceVariant,
-                                                        ),
-                                                      ),
-                                                    ],
+                  SafeArea(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final w = constraints.maxWidth;
+                        final lane = w < 600
+                            ? w
+                            : w < 1024
+                                ? 720.0
+                                : w < 1440
+                                    ? 840.0
+                                    : 960.0;
+                        return Center(
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(maxWidth: lane),
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              child: SingleChildScrollView(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(AppSpacing.lg),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      // ── 1. Header ─────────────────────
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Center(
+                                              child: FittedBox(
+                                                fit: BoxFit.scaleDown,
+                                                alignment: Alignment.center,
+                                                child: Text(
+                                                  'Positive Phill',
+                                                  maxLines: 1,
+                                                  softWrap: false,
+                                                  overflow:
+                                                      TextOverflow.visible,
+                                                  style: textTheme
+                                                      .headlineMedium
+                                                      ?.copyWith(
+                                                    color: colorScheme.primary,
+                                                    fontWeight: FontWeight.bold,
+                                                    shadows:
+                                                        textBacklightShadows,
                                                   ),
                                                 ),
-                                                Icon(
-                                                  Icons.chevron_right,
-                                                  color: colorScheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-
-                                    // ── 2. XP + Streak (hidden in zen) ─
-                                    if (!_zenMode) ...[
-                                      const SizedBox(
-                                          height: AppSpacing.md),
-                                      XpProgressBar(
-                                          progress: userProvider.progress),
-                                      const SizedBox(
-                                          height: AppSpacing.md),
-                                      Center(
-                                        child: StreakDisplay(
-                                            streak: userProvider
-                                                .progress.streak),
-                                      ),
-                                    ],
-
-                                    // ── 3. Mood bar (hidden in zen) ─────
-                                    if (!_zenMode) ...[
-                                      const SizedBox(
-                                          height: AppSpacing.lg),
-                                      MoodBar(
-                                        selectedMood: _selectedMood,
-                                        onMoodSelected: _onMoodSelected,
-                                        textShadows: textBacklightShadows,
-                                      ),
-                                    ],
-
-                                    // ── 4. Daily fortune (hidden in zen) ─
-                                    if (!_zenMode) ...[
-                                      const SizedBox(
-                                          height: AppSpacing.md),
-                                      const DailyFortuneCard(),
-                                    ],
-
-                                    // ── 5. Daily theme quote ─────────────
-                                    const SizedBox(height: AppSpacing.md),
-                                    Container(
-                                      width: double.infinity,
-                                      padding:
-                                          const EdgeInsets.symmetric(
-                                              vertical: 24,
-                                              horizontal: 16),
-                                      decoration: BoxDecoration(
-                                        color: colorScheme
-                                            .secondaryContainer,
-                                        borderRadius:
-                                            BorderRadius.circular(
-                                                AppRadius.lg),
-                                      ),
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.center,
-                                        children: [
-                                          const Text('💭',
-                                              style: TextStyle(
-                                                  fontSize: 28)),
-                                          const SizedBox(
-                                              height: AppSpacing.sm),
-                                          AnimatedSwitcher(
-                                            duration: const Duration(
-                                                milliseconds: 300),
-                                            child: Text(
-                                              key: ValueKey(_dailyTheme),
-                                              _dailyTheme,
-                                              textAlign: TextAlign.center,
-                                              style: textTheme.titleMedium
-                                                  ?.copyWith(
-                                                color: colorScheme
-                                                    .onSecondaryContainer,
-                                                fontStyle: FontStyle.italic,
-                                                shadows:
-                                                    textBacklightShadows,
                                               ),
                                             ),
+                                          ),
+                                          IconButton(
+                                            onPressed: () =>
+                                                context.push('/favorites'),
+                                            icon: Icon(Icons.favorite_border,
+                                                color: colorScheme.onSurface),
+                                            tooltip: 'Saved Affirmations',
+                                          ),
+                                          IconButton(
+                                            onPressed: _toggleZenMode,
+                                            icon: Icon(
+                                              _zenMode
+                                                  ? Icons.self_improvement
+                                                  : Icons
+                                                      .self_improvement_outlined,
+                                              color: _zenMode
+                                                  ? colorScheme.primary
+                                                  : colorScheme.onSurface,
+                                            ),
+                                            tooltip: _zenMode
+                                                ? 'Exit Focus Mode'
+                                                : 'Enter Focus Mode',
+                                          ),
+                                          IconButton(
+                                            onPressed: () =>
+                                                context.push('/settings'),
+                                            icon: Icon(Icons.settings,
+                                                color: colorScheme.onSurface),
+                                            tooltip: 'Settings',
                                           ),
                                         ],
                                       ),
-                                    ),
 
-                                    // ── 6. Category chips (hidden in zen) ─
-                                    if (!_zenMode) ...[
-                                      const SizedBox(
-                                          height: AppSpacing.lg),
-                                      Center(
-                                        child: Text(
-                                          "Today's Affirmations",
-                                          style:
-                                              textTheme.titleLarge?.copyWith(
-                                            color: colorScheme.onSurface,
-                                            fontWeight: FontWeight.bold,
-                                            shadows: textBacklightShadows,
+                                      if (!_zenMode) ...[
+                                        const SizedBox(height: AppSpacing.md),
+                                        SosEntryCard(
+                                          textShadows: textBacklightShadows,
+                                        ),
+                                      ],
+
+                                      if (!_zenMode &&
+                                          !suppressPlainBackgroundTip &&
+                                          bgPreset ==
+                                              BackgroundGradientPreset
+                                                  .none) ...[
+                                        const SizedBox(height: AppSpacing.sm),
+                                        Material(
+                                          color: colorScheme
+                                              .surfaceContainerHighest
+                                              .withValues(alpha: 0.92),
+                                          borderRadius: BorderRadius.circular(
+                                              AppRadius.md),
+                                          child: InkWell(
+                                            borderRadius: BorderRadius.circular(
+                                                AppRadius.md),
+                                            onTap: () {
+                                              HapticsService.feedback(
+                                                  FeedbackType.selection);
+                                              context.push(AppRoutes.settings);
+                                            },
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 16,
+                                                vertical: 12,
+                                              ),
+                                              child: Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.wallpaper_outlined,
+                                                    color: colorScheme.primary,
+                                                  ),
+                                                  const SizedBox(width: 12),
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        Text(
+                                                          'Make this screen yours',
+                                                          style: textTheme
+                                                              .titleSmall
+                                                              ?.copyWith(
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            color: colorScheme
+                                                                .onSurface,
+                                                            shadows:
+                                                                textBacklightShadows,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                            height: 2),
+                                                        Text(
+                                                          'Add a background image',
+                                                          style: textTheme
+                                                              .bodySmall
+                                                              ?.copyWith(
+                                                            color: colorScheme
+                                                                .onSurfaceVariant,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  Icon(
+                                                    Icons.chevron_right,
+                                                    color: colorScheme
+                                                        .onSurfaceVariant,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                      const SizedBox(
-                                          height: AppSpacing.sm),
-                                      CategorySelector(
-                                        selectedCategory: _selectedCategory,
-                                        onCategoryChanged:
-                                            _onCategoryChanged,
-                                      ),
-                                    ] else ...[
-                                      const SizedBox(
-                                          height: AppSpacing.lg),
-                                    ],
+                                      ],
 
-                                    // ── 7. Affirmation deck ───────────────
-                                    const SizedBox(height: AppSpacing.md),
-                                    SizedBox(
-                                      height: 300,
-                                      child: _currentPack.isEmpty
-                                          ? Center(
+                                      // ── 2. XP + Streak (hidden in zen) ─
+                                      if (!_zenMode) ...[
+                                        const SizedBox(height: AppSpacing.md),
+                                        XpProgressBar(
+                                            progress: userProvider.progress),
+                                        const SizedBox(height: AppSpacing.md),
+                                        Center(
+                                          child: StreakDisplay(
+                                              streak:
+                                                  userProvider.progress.streak),
+                                        ),
+                                      ],
+
+                                      // ── 3. Mood bar (hidden in zen) ─────
+                                      if (!_zenMode) ...[
+                                        const SizedBox(height: AppSpacing.lg),
+                                        MoodBar(
+                                          selectedMood: _selectedMood,
+                                          onMoodSelected: _onMoodSelected,
+                                          textShadows: textBacklightShadows,
+                                        ),
+                                      ],
+
+                                      // ── 4. Daily fortune (hidden in zen) ─
+                                      if (!_zenMode) ...[
+                                        const SizedBox(height: AppSpacing.md),
+                                        const DailyFortuneCard(),
+                                      ],
+
+                                      // ── 5. Daily theme quote ─────────────
+                                      const SizedBox(height: AppSpacing.md),
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 24, horizontal: 16),
+                                        decoration: BoxDecoration(
+                                          color: colorScheme.secondaryContainer,
+                                          borderRadius: BorderRadius.circular(
+                                              AppRadius.lg),
+                                        ),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: [
+                                            const Text('💭',
+                                                style: TextStyle(fontSize: 28)),
+                                            const SizedBox(
+                                                height: AppSpacing.sm),
+                                            AnimatedSwitcher(
+                                              duration: const Duration(
+                                                  milliseconds: 300),
                                               child: Text(
-                                                'No affirmations available',
-                                                style:
-                                                    textTheme.bodyMedium,
-                                              ),
-                                            )
-                                          : ScrollConfiguration(
-                                              behavior:
-                                                  const AppScrollBehavior(),
-                                              child: PageView.builder(
-                                                controller: _pageController,
-                                                itemCount:
-                                                    _currentPack.length,
-                                                onPageChanged: _onPageChanged,
-                                                itemBuilder:
-                                                    (context, index) {
-                                                  return AffirmationCard(
-                                                    affirmation:
-                                                        _currentPack[index],
-                                                    textBacklightEnabled:
-                                                        textBacklight,
-                                                    shareSubtitle:
-                                                        _selectedCategory
-                                                            ?.displayName,
-                                                  );
-                                                },
+                                                key: ValueKey(_dailyTheme),
+                                                _dailyTheme,
+                                                textAlign: TextAlign.center,
+                                                style: textTheme.titleMedium
+                                                    ?.copyWith(
+                                                  color: colorScheme
+                                                      .onSecondaryContainer,
+                                                  fontStyle: FontStyle.italic,
+                                                  shadows: textBacklightShadows,
+                                                ),
                                               ),
                                             ),
-                                    ),
+                                          ],
+                                        ),
+                                      ),
 
-                                    // ── Page dots ────────────────────────
-                                    const SizedBox(height: AppSpacing.sm),
-                                    Center(
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: List.generate(
-                                          _currentPack.length > 10
-                                              ? 10
-                                              : _currentPack.length,
-                                          (i) => Container(
-                                            margin:
-                                                const EdgeInsets.symmetric(
-                                                    horizontal: 4),
-                                            width: 8,
-                                            height: 8,
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              color: _currentPage == i
-                                                  ? colorScheme.primary
-                                                  : colorScheme.outline
-                                                      .withValues(
-                                                          alpha: 0.3),
+                                      // ── 6. Category chips (hidden in zen) ─
+                                      if (!_zenMode) ...[
+                                        const SizedBox(height: AppSpacing.lg),
+                                        Center(
+                                          child: Text(
+                                            "Today's Affirmations",
+                                            style:
+                                                textTheme.titleLarge?.copyWith(
+                                              color: colorScheme.onSurface,
+                                              fontWeight: FontWeight.bold,
+                                              shadows: textBacklightShadows,
                                             ),
                                           ),
                                         ),
-                                      ),
-                                    ),
-
-                                    // ── 8. Daily quests (hidden in zen) ──
-                                    if (!_zenMode) ...[
-                                      const SizedBox(
-                                          height: AppSpacing.xl),
-                                      const DailyQuestCard(),
-                                    ],
-
-                                    // ── 9. Streak heatmap (hidden in zen) ─
-                                    if (!_zenMode) ...[
-                                      const SizedBox(
-                                          height: AppSpacing.lg),
-                                      StreakHeatmap(
-                                          completedDates: completedDates),
-                                    ],
-
-                                    // ── 10. CTA buttons (hidden in zen) ──
-                                    if (!_zenMode) ...[
-                                      const SizedBox(
-                                          height: AppSpacing.xl),
-                                      // Primary CTA
-                                      FilledButton.icon(
-                                        onPressed: _onGetMore,
-                                        icon: const Icon(
-                                            Icons.add_circle_outline),
-                                        label: const Text(
-                                            'Get More Affirmations'),
-                                        style: FilledButton.styleFrom(
-                                          minimumSize:
-                                              const Size.fromHeight(52),
-                                          backgroundColor:
-                                              colorScheme.primary,
-                                          foregroundColor:
-                                              colorScheme.onPrimary,
-                                          textStyle: const TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(
-                                                    AppRadius.md),
-                                          ),
+                                        const SizedBox(height: AppSpacing.sm),
+                                        CategorySelector(
+                                          selectedCategory: _selectedCategory,
+                                          onCategoryChanged: _onCategoryChanged,
                                         ),
+                                      ] else ...[
+                                        const SizedBox(height: AppSpacing.lg),
+                                      ],
+
+                                      // ── 7. Affirmation deck ───────────────
+                                      const SizedBox(height: AppSpacing.md),
+                                      SizedBox(
+                                        height: 300,
+                                        child: _currentPack.isEmpty
+                                            ? Center(
+                                                child: Text(
+                                                  'No affirmations available',
+                                                  style: textTheme.bodyMedium,
+                                                ),
+                                              )
+                                            : ScrollConfiguration(
+                                                behavior:
+                                                    const AppScrollBehavior(),
+                                                child: PageView.builder(
+                                                  controller: _pageController,
+                                                  itemCount:
+                                                      _currentPack.length,
+                                                  onPageChanged: _onPageChanged,
+                                                  itemBuilder:
+                                                      (context, index) {
+                                                    return AffirmationCard(
+                                                      affirmation:
+                                                          _currentPack[index],
+                                                      textBacklightEnabled:
+                                                          textBacklight,
+                                                      shareSubtitle:
+                                                          _selectedCategory
+                                                              ?.displayName,
+                                                    );
+                                                  },
+                                                ),
+                                              ),
                                       ),
+
+                                      // ── Page dots ────────────────────────
                                       const SizedBox(height: AppSpacing.sm),
-                                      // Secondary CTA
-                                      FilledButton.icon(
-                                        onPressed: () =>
-                                            context.push('/session'),
-                                        icon: const Icon(Icons.spa),
-                                        label: const Text(
-                                            'Start Daily Session'),
-                                        style: FilledButton.styleFrom(
-                                          minimumSize:
-                                              const Size.fromHeight(52),
-                                          backgroundColor:
-                                              colorScheme.secondary,
-                                          foregroundColor:
-                                              colorScheme.onSecondary,
-                                          textStyle: const TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(
-                                                    AppRadius.md),
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(height: AppSpacing.sm),
-                                      // Tertiary outlined CTA
-                                      OutlinedButton.icon(
-                                        onPressed: () =>
-                                            context.push('/webview'),
-                                        icon: const Icon(Icons.games),
-                                        label:
-                                            const Text('Play YouImageFlip'),
-                                        style: OutlinedButton.styleFrom(
-                                          minimumSize:
-                                              const Size.fromHeight(52),
-                                          foregroundColor:
-                                              colorScheme.primary,
-                                          textStyle: const TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                          side: BorderSide(
-                                            color: colorScheme.primary
-                                                .withValues(alpha: 0.6),
-                                            width: 1.25,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(
-                                                    AppRadius.md),
+                                      Center(
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: List.generate(
+                                            _currentPack.length > 10
+                                                ? 10
+                                                : _currentPack.length,
+                                            (i) => Container(
+                                              margin:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 4),
+                                              width: 8,
+                                              height: 8,
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: _currentPage == i
+                                                    ? colorScheme.primary
+                                                    : colorScheme.outline
+                                                        .withValues(alpha: 0.3),
+                                              ),
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ] else ...[
-                                      const SizedBox(
-                                          height: AppSpacing.xl),
+
+                                      // ── 8. Daily quests (hidden in zen) ──
+                                      if (!_zenMode) ...[
+                                        const SizedBox(height: AppSpacing.xl),
+                                        const DailyQuestCard(),
+                                      ],
+
+                                      // ── 9. Streak heatmap (hidden in zen) ─
+                                      if (!_zenMode) ...[
+                                        const SizedBox(height: AppSpacing.lg),
+                                        StreakHeatmap(
+                                            completedDates: completedDates),
+                                      ],
+
+                                      // ── 10. CTA buttons (hidden in zen) ──
+                                      if (!_zenMode) ...[
+                                        const SizedBox(height: AppSpacing.xl),
+                                        // Primary CTA
+                                        FilledButton.icon(
+                                          onPressed: _onGetMore,
+                                          icon: const Icon(
+                                              Icons.add_circle_outline),
+                                          label: const Text(
+                                              'Get More Affirmations'),
+                                          style: FilledButton.styleFrom(
+                                            minimumSize:
+                                                const Size.fromHeight(52),
+                                            backgroundColor:
+                                                colorScheme.primary,
+                                            foregroundColor:
+                                                colorScheme.onPrimary,
+                                            textStyle: const TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                      AppRadius.md),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: AppSpacing.sm),
+                                        // Secondary CTA
+                                        FilledButton.icon(
+                                          onPressed: () =>
+                                              context.push('/session'),
+                                          icon: const Icon(Icons.spa),
+                                          label:
+                                              const Text('Start Daily Session'),
+                                          style: FilledButton.styleFrom(
+                                            minimumSize:
+                                                const Size.fromHeight(52),
+                                            backgroundColor:
+                                                colorScheme.secondary,
+                                            foregroundColor:
+                                                colorScheme.onSecondary,
+                                            textStyle: const TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                      AppRadius.md),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: AppSpacing.sm),
+                                        // Tertiary outlined CTA
+                                        OutlinedButton.icon(
+                                          onPressed: () =>
+                                              context.push('/webview'),
+                                          icon: const Icon(Icons.games),
+                                          label:
+                                              const Text('Play YouImageFlip'),
+                                          style: OutlinedButton.styleFrom(
+                                            minimumSize:
+                                                const Size.fromHeight(52),
+                                            foregroundColor:
+                                                colorScheme.primary,
+                                            textStyle: const TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            side: BorderSide(
+                                              color: colorScheme.primary
+                                                  .withValues(alpha: 0.6),
+                                              width: 1.25,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                      AppRadius.md),
+                                            ),
+                                          ),
+                                        ),
+                                      ] else ...[
+                                        const SizedBox(height: AppSpacing.xl),
+                                      ],
                                     ],
-                                  ],
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
-                ),
-                // ── Zen exit FAB ─────────────────────────────────────
-                if (_zenMode)
-                  Positioned(
-                    bottom: 32,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: SafeArea(
-                        child: FloatingActionButton.extended(
-                          onPressed: _toggleZenMode,
-                          backgroundColor:
-                              colorScheme.primaryContainer,
-                          foregroundColor:
-                              colorScheme.onPrimaryContainer,
-                          icon: const Icon(Icons.close, size: 18),
-                          label: const Text('Exit Focus'),
-                          elevation: 4,
+                  // ── Zen exit FAB ─────────────────────────────────────
+                  if (_zenMode)
+                    Positioned(
+                      bottom: 32,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: SafeArea(
+                          child: FloatingActionButton.extended(
+                            onPressed: _toggleZenMode,
+                            backgroundColor: colorScheme.primaryContainer,
+                            foregroundColor: colorScheme.onPrimaryContainer,
+                            icon: const Icon(Icons.close, size: 18),
+                            label: const Text('Exit Focus'),
+                            elevation: 4,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-              ],
-            );
-          },
-        ),
+                ],
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }
@@ -957,10 +953,8 @@ class CategorySelector extends StatelessWidget {
                 softWrap: false,
                 overflow: TextOverflow.visible,
               ),
-              labelPadding:
-                  const EdgeInsets.symmetric(horizontal: 8),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 8, vertical: 4),
+              labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               selected: selectedCategory == null,
               onSelected: (_) => onCategoryChanged(null),
               backgroundColor: colorScheme.surface,
@@ -978,17 +972,13 @@ class CategorySelector extends StatelessWidget {
                     color: isSelected
                         ? colorScheme.onSecondaryContainer
                         : colorScheme.onSurface,
-                    fontWeight: isSelected
-                        ? FontWeight.w600
-                        : FontWeight.w500,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                   ),
                   softWrap: false,
                   overflow: TextOverflow.visible,
                 ),
-                labelPadding:
-                    const EdgeInsets.symmetric(horizontal: 8),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 4),
+                labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 selected: isSelected,
                 onSelected: (_) => onCategoryChanged(category),
                 backgroundColor: colorScheme.surface,

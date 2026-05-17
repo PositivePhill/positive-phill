@@ -42,10 +42,9 @@ Future<void> showBackgroundStyleSheet(
                         ),
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  AnimatedBuilder(
-                    animation: StorageService.boardVideoPreset,
-                    builder: (context, _) {
-                      final videoSelected = StorageService.boardVideoPreset.value;
+                  ValueListenableBuilder<BoardVideoPreset>(
+                    valueListenable: StorageService.boardVideoPreset,
+                    builder: (context, videoSelected, _) {
                       final maxH = MediaQuery.sizeOf(context).height * 0.68;
                       return ConstrainedBox(
                         constraints: BoxConstraints(maxHeight: maxH),
@@ -68,9 +67,8 @@ Future<void> showBackgroundStyleSheet(
                                   selected: videoSelected == v,
                                   leading: Icon(
                                     Icons.movie_filter_outlined,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .primary,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
                                   ),
                                   title: Text(v.displayName),
                                   subtitle: const Text(
@@ -88,21 +86,23 @@ Future<void> showBackgroundStyleSheet(
                                     HapticsService.feedback(
                                         FeedbackType.selection);
                                     await storage.setBoardVideoPreset(v);
+                                    if (!modalCtx.mounted) return;
+                                    setModalState(() {});
                                   },
                                 ),
                             ListTile(
                               leading: Icon(
                                 Icons.videocam_off_outlined,
-                                color:
-                                    Theme.of(context).colorScheme.primary,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                               title: const Text('Clear video background'),
                               onTap: () async {
-                                HapticsService.feedback(
-                                    FeedbackType.selection);
+                                HapticsService.feedback(FeedbackType.selection);
                                 await storage.setBoardVideoPreset(
-                                    BoardVideoPreset.none,
+                                  BoardVideoPreset.none,
                                 );
+                                if (!modalCtx.mounted) return;
+                                setModalState(() {});
                               },
                             ),
                             const Divider(height: AppSpacing.xl),
@@ -116,7 +116,8 @@ Future<void> showBackgroundStyleSheet(
                                   ),
                             ),
                             const SizedBox(height: AppSpacing.sm),
-                            for (final preset in BackgroundGradientPreset.values)
+                            for (final preset
+                                in BackgroundGradientPreset.values)
                               ListTile(
                                 selected: selected == preset,
                                 title: Text(preset.displayName),
@@ -142,11 +143,9 @@ Future<void> showBackgroundStyleSheet(
                               leading: const Icon(
                                   Icons.add_photo_alternate_outlined),
                               title: const Text('Use my photo'),
-                              subtitle:
-                                  const Text('Choose from your gallery'),
+                              subtitle: const Text('Choose from your gallery'),
                               onTap: () async {
-                                HapticsService.feedback(
-                                    FeedbackType.selection);
+                                HapticsService.feedback(FeedbackType.selection);
                                 Navigator.pop(ctx);
                                 await onPickImage();
                               },
