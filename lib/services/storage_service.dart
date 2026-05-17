@@ -210,7 +210,7 @@ class StorageService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(_boardVideoPresetKey);
-      final preset = BoardVideoPreset.fromStorage(raw);
+      final preset = BoardVideoPreset.fromStorageId(raw);
       final invalidStored = raw != null &&
           raw.trim().isNotEmpty &&
           preset == BoardVideoPreset.none;
@@ -232,7 +232,7 @@ class StorageService {
       if (preset == BoardVideoPreset.none) {
         await prefs.remove(_boardVideoPresetKey);
       } else {
-        await prefs.setString(_boardVideoPresetKey, preset.storageName);
+        await prefs.setString(_boardVideoPresetKey, preset.storageId);
       }
       boardVideoPreset.value = preset;
     } catch (e) {
