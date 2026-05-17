@@ -10,10 +10,12 @@ import 'package:positive_phill/providers/tts_provider.dart';
 import 'package:positive_phill/providers/user_provider.dart';
 import 'package:positive_phill/nav.dart';
 import 'package:positive_phill/services/affirmations_service.dart';
+import 'package:positive_phill/services/storage_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AffirmationsService.preload();
+  await StorageService.hydrateBoardVideoPresetOnLaunch();
   // Initialize Mobile Ads only on supported platforms (Android/iOS). Skip on web.
   if (!kIsWeb) {
     try {

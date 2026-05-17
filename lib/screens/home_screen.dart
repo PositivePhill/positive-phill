@@ -73,7 +73,12 @@ class _HomeScreenState extends State<HomeScreen> {
     unawaited(_loadZenMode());
     unawaited(_loadMood());
     unawaited(_loadBackgroundPreset());
-    unawaited(_loadBoardVideoPreset());
+    // Board video notifier is hydrated in main; re-read once post-frame so a
+    // late prefs sync cannot leave Home stuck on none (no SharedPreferences reads in build).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_loadBoardVideoPreset());
+    });
     _listenForLevelUp();
   }
 

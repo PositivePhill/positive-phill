@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:positive_phill/models/background_gradient_preset.dart';
@@ -43,6 +44,12 @@ class StorageService {
 
   static final ValueNotifier<BoardVideoPreset> boardVideoPreset =
       ValueNotifier<BoardVideoPreset>(BoardVideoPreset.none);
+
+  /// Call once during cold start ([main]) before [runApp] so Home (and widgets
+  /// that subscribe to [boardVideoPreset]) see persisted prefs on the first frame.
+  static Future<void> hydrateBoardVideoPresetOnLaunch() async {
+    await StorageService().getBoardVideoPreset();
+  }
 
   Future<UserProgress> loadUserProgress() async {
     try {
@@ -217,7 +224,13 @@ class StorageService {
       if (invalidStored) {
         await prefs.remove(_boardVideoPresetKey);
       }
+      final previous = boardVideoPreset.value;
       boardVideoPreset.value = preset;
+      if (kDebugMode && preset != previous) {
+        debugPrint(
+          'StorageService hydrated board video preset: ${preset.name}',
+        );
+      }
       return preset;
     } catch (e) {
       debugPrint('Failed to load board_video_preset: $e');
@@ -235,6 +248,13 @@ class StorageService {
         await prefs.setString(_boardVideoPresetKey, preset.storageId);
       }
       boardVideoPreset.value = preset;
+      if (kDebugMode) {
+        if (preset == BoardVideoPreset.none) {
+          debugPrint('setBoardVideoPreset saved: none (key removed)');
+        } else {
+          debugPrint('setBoardVideoPreset saved: ${preset.storageId}');
+        }
+      }
     } catch (e) {
       debugPrint('Failed to save board_video_preset: $e');
     }
