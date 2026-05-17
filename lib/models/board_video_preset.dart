@@ -7,7 +7,15 @@ enum BoardVideoPreset {
   campfireGlow,
   cosmicDrift;
 
-  String get storageName => name;
+  /// Stable id for persistence (snake_case; `none` is stored by clearing the key).
+  String get storageId => switch (this) {
+        BoardVideoPreset.none => 'none',
+        BoardVideoPreset.rainWindow => 'rain_window',
+        BoardVideoPreset.oceanCalm => 'ocean_calm',
+        BoardVideoPreset.forestLight => 'forest_light',
+        BoardVideoPreset.campfireGlow => 'campfire_glow',
+        BoardVideoPreset.cosmicDrift => 'cosmic_drift',
+      };
 
   String get displayName => switch (this) {
         BoardVideoPreset.none => 'None',
@@ -33,12 +41,23 @@ enum BoardVideoPreset {
           'assets/videos/cosmic_drift_loop.mp4',
       };
 
-  static BoardVideoPreset fromStorage(String? raw) {
-    if (raw == null || raw.trim().isEmpty) return BoardVideoPreset.none;
-    final n = raw.trim();
-    for (final v in BoardVideoPreset.values) {
-      if (v.name == n) return v;
-    }
-    return BoardVideoPreset.none;
+  /// Normalizes persisted ids so live values like `forestlight` match [forestLight].
+  static String _canonicalStorageKey(String raw) {
+    final trimmed = raw.trim().toLowerCase();
+    return trimmed.replaceAll(RegExp(r'[\s_\-]+'), '');
+  }
+
+  static BoardVideoPreset fromStorageId(String? value) {
+    if (value == null) return BoardVideoPreset.none;
+    final key = _canonicalStorageKey(value);
+    if (key.isEmpty || key == 'none') return BoardVideoPreset.none;
+    return switch (key) {
+      'rainwindow' => BoardVideoPreset.rainWindow,
+      'oceancalm' => BoardVideoPreset.oceanCalm,
+      'forestlight' => BoardVideoPreset.forestLight,
+      'campfireglow' => BoardVideoPreset.campfireGlow,
+      'cosmicdrift' => BoardVideoPreset.cosmicDrift,
+      _ => BoardVideoPreset.none,
+    };
   }
 }
