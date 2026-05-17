@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:positive_phill/models/board_video_preset.dart';
@@ -17,10 +18,11 @@ class BoardVideoBackground extends StatefulWidget {
   /// Must not be [BoardVideoPreset.none].
   final BoardVideoPreset preset;
 
-  /// Called after init/play failure or decode error — clear persisted preset.
+  /// Clear persisted preset — always invoked from a post-frame callback.
   final VoidCallback? onFatalError;
 
-  /// Called when the surface becomes visible (`true`) or on dispose (`false`).
+  /// Surface visibility — callbacks are deferred to the next frame (never sync
+  /// during init/build/dispose).
   final ValueChanged<bool>? onPresentationChanged;
 
   @override
@@ -30,7 +32,40 @@ class BoardVideoBackground extends StatefulWidget {
 class _BoardVideoBackgroundState extends State<BoardVideoBackground> {
   VideoPlayerController? _controller;
   bool _ready = false;
-  bool _fatalReported = false;
+  bool _fatalClearScheduled = false;
+  bool _errorCleanedUp = false;
+
+  void _log(String message) {
+    if (kDebugMode) {
+      debugPrint('[BoardVideo ${widget.preset.name}] $message');
+    }
+  }
+
+  void _deferToNextFrame(void Function() fn) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      fn();
+    });
+  }
+
+  void _scheduleFatalClear() {
+    if (_fatalClearScheduled) return;
+    _fatalClearScheduled = true;
+    final onFatal = widget.onFatalError;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      onFatal?.call();
+    });
+  }
+
+  void _notifyPresentation(bool visible) {
+    final cb = widget.onPresentationChanged;
+    if (cb == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      cb(visible);
+    });
+  }
 
   @override
   void initState() {
@@ -41,11 +76,15 @@ class _BoardVideoBackgroundState extends State<BoardVideoBackground> {
   Future<void> _bootstrap() async {
     final asset = widget.preset.bundledAssetPath();
     if (asset == null) {
-      widget.onFatalError?.call();
+      _log('no bundled asset — scheduling preset clear');
+      _scheduleFatalClear();
       return;
     }
+
+    _log('initializing asset: $asset');
     final controller = VideoPlayerController.asset(asset);
     _controller = controller;
+
     try {
       await controller.initialize();
       if (!mounted) return;
@@ -53,36 +92,43 @@ class _BoardVideoBackgroundState extends State<BoardVideoBackground> {
       await controller.setVolume(0);
       controller.addListener(_onVideoTick);
 
-      widget.onPresentationChanged?.call(false);
       await controller.play();
 
       if (!mounted) return;
-      setState(() => _ready = true);
-      widget.onPresentationChanged?.call(true);
+      _deferToNextFrame(() {
+        setState(() => _ready = true);
+        _notifyPresentation(true);
+        _log('ready (playing)');
+      });
     } catch (e, st) {
-      debugPrint('BoardVideoBackground init failed: $e\n$st');
-      await controller.dispose();
+      _log('init failed: $e\n$st');
+      try {
+        await controller.dispose();
+      } catch (_) {}
       _controller = null;
-      if (mounted) {
+      if (!mounted) return;
+      _deferToNextFrame(() {
         setState(() => _ready = false);
-      }
-      widget.onFatalError?.call();
+        _scheduleFatalClear();
+      });
     }
   }
 
   void _onVideoTick() {
     final c = _controller;
-    if (c == null || !mounted || _fatalReported) return;
+    if (c == null || !mounted || _fatalClearScheduled || _errorCleanedUp) {
+      return;
+    }
     if (c.value.hasError) {
-      debugPrint(
-          'BoardVideoBackground error: ${c.value.errorDescription ?? "unknown"}');
-      _fatalReported = true;
-      unawaited(_failCleanup());
-      widget.onFatalError?.call();
+      _log(
+        'player error: ${c.value.errorDescription ?? "unknown"}',
+      );
+      _errorCleanedUp = true;
+      unawaited(_failCleanupAfterError());
     }
   }
 
-  Future<void> _failCleanup() async {
+  Future<void> _failCleanupAfterError() async {
     final c = _controller;
     _controller = null;
     if (c == null) return;
@@ -91,15 +137,20 @@ class _BoardVideoBackgroundState extends State<BoardVideoBackground> {
       await c.pause();
       await c.dispose();
     } catch (_) {}
+
     if (!mounted) return;
-    setState(() => _ready = false);
-    widget.onPresentationChanged?.call(false);
+    _deferToNextFrame(() {
+      setState(() => _ready = false);
+      _notifyPresentation(false);
+      _scheduleFatalClear();
+    });
   }
 
   @override
   void dispose() {
     final c = _controller;
     _controller = null;
+    final onPres = widget.onPresentationChanged;
     if (c != null) {
       c.removeListener(_onVideoTick);
       unawaited(() async {
@@ -108,7 +159,9 @@ class _BoardVideoBackgroundState extends State<BoardVideoBackground> {
         } catch (_) {}
       }());
     }
-    widget.onPresentationChanged?.call(false);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      onPres?.call(false);
+    });
     super.dispose();
   }
 
