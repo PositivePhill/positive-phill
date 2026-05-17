@@ -70,6 +70,9 @@ class _BoardVideoBackgroundState extends State<BoardVideoBackground> {
   @override
   void initState() {
     super.initState();
+    print(
+      '[board-video] init asset=${widget.preset.bundledAssetPath()}',
+    );
     unawaited(_bootstrap());
   }
 
