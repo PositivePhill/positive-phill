@@ -131,11 +131,34 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadBoardVideoPreset() async {
-    print('[board-video] home fallback raw/preset check starting');
     final preset = await StorageService().getBoardVideoPreset();
     StorageService.boardVideoPreset.value = preset;
-    print(
-      '[board-video] home fallback preset=${StorageService.boardVideoPreset.value}',
+  }
+
+  /// Readable header actions on bright video/image/gradient backdrops.
+  Widget _homeHeaderIconButton({
+    required BuildContext context,
+    required IconData icon,
+    required VoidCallback onPressed,
+    required String tooltip,
+    Color? iconColor,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgAlpha = isDark ? 0.4 : 0.78;
+    return Material(
+      color: scheme.surface.withValues(alpha: bgAlpha),
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      elevation: 1,
+      shadowColor: Colors.black.withValues(alpha: 0.35),
+      surfaceTintColor: Colors.transparent,
+      child: IconButton(
+        onPressed: onPressed,
+        tooltip: tooltip,
+        icon: Icon(icon),
+        color: iconColor ?? scheme.onSurface,
+      ),
     );
   }
 
@@ -503,33 +526,31 @@ class _HomeScreenState extends State<HomeScreen> {
                                               ),
                                             ),
                                           ),
-                                          IconButton(
+                                          _homeHeaderIconButton(
+                                            context: context,
+                                            icon: Icons.favorite_border,
                                             onPressed: () =>
                                                 context.push('/favorites'),
-                                            icon: Icon(Icons.favorite_border,
-                                                color: colorScheme.onSurface),
                                             tooltip: 'Saved Affirmations',
                                           ),
-                                          IconButton(
+                                          _homeHeaderIconButton(
+                                            context: context,
+                                            icon: _zenMode
+                                                ? Icons.self_improvement
+                                                : Icons.self_improvement_outlined,
                                             onPressed: _toggleZenMode,
-                                            icon: Icon(
-                                              _zenMode
-                                                  ? Icons.self_improvement
-                                                  : Icons
-                                                      .self_improvement_outlined,
-                                              color: _zenMode
-                                                  ? colorScheme.primary
-                                                  : colorScheme.onSurface,
-                                            ),
+                                            iconColor: _zenMode
+                                                ? colorScheme.primary
+                                                : null,
                                             tooltip: _zenMode
                                                 ? 'Exit Focus Mode'
                                                 : 'Enter Focus Mode',
                                           ),
-                                          IconButton(
+                                          _homeHeaderIconButton(
+                                            context: context,
+                                            icon: Icons.settings,
                                             onPressed: () =>
                                                 context.push('/settings'),
-                                            icon: Icon(Icons.settings,
-                                                color: colorScheme.onSurface),
                                             tooltip: 'Settings',
                                           ),
                                         ],

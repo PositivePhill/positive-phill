@@ -718,18 +718,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _sectionHeader(context, 'About'),
               ListTile(
                 leading: Icon(Icons.info, color: colorScheme.primary),
-                title: const Text('Possum Mattern Studios'),
+                title: const Text('Positive Phill'),
                 subtitle: Text(_versionLabel),
               ),
               ListTile(
                 leading: Icon(Icons.language, color: colorScheme.primary),
-                title: const Text('Website'),
+                title: const Text('Possum Mattern Studios'),
                 subtitle: const Text('Visit our website'),
                 trailing: const Icon(Icons.open_in_new, size: 20),
                 onTap: () {
                   HapticsService.feedback(FeedbackType.selection);
-                  _openExternalUrl(
-                      'https://positivephill.github.io/positive-phill/index.html');
+                  _openExternalUrl('https://possummatternstudios.com');
                 },
               ),
               ListTile(
