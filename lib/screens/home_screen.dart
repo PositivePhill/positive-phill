@@ -131,7 +131,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadBoardVideoPreset() async {
-    await StorageService().getBoardVideoPreset();
+    print('[board-video] home fallback raw/preset check starting');
+    final preset = await StorageService().getBoardVideoPreset();
+    StorageService.boardVideoPreset.value = preset;
+    print(
+      '[board-video] home fallback preset=${StorageService.boardVideoPreset.value}',
+    );
   }
 
   // ── Zen mode ─────────────────────────────────────────────────────────────
