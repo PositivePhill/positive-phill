@@ -1,7 +1,7 @@
 name: positive_phill
 description: "\"Positive Phill\" is a calming and empowering mobile app designed to uplift your spirits daily with personalized affirmations, gamified progress tracking, and a premium, modern user experience."
 publish_to: "none"
-version: 1.4.0
+version: 1.5.0
 
 environment:
   sdk: ^3.6.0

@@ -713,18 +713,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const Divider(),
 
               // ─────────────────────────────────────────────────────────────
-              // ABOUT
+              // ABOUT & STUDIO
               // ─────────────────────────────────────────────────────────────
-              _sectionHeader(context, 'About'),
+              _sectionHeader(context, 'About & Studio'),
               ListTile(
-                leading: Icon(Icons.info, color: colorScheme.primary),
+                leading: Icon(Icons.spa_outlined, color: colorScheme.primary),
                 title: const Text('Positive Phill'),
-                subtitle: Text(_versionLabel),
+                subtitle: Text(
+                  '$_versionLabel\n'
+                  'Gentle affirmations for everyday calm.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                        height: 1.35,
+                      ),
+                ),
+                isThreeLine: true,
+              ),
+              ListTile(
+                leading:
+                    Icon(Icons.apartment_outlined, color: colorScheme.primary),
+                title: const Text('Possum Mattern Studios'),
+                subtitle: const Text('Small studio, thoughtful apps'),
               ),
               ListTile(
                 leading: Icon(Icons.language, color: colorScheme.primary),
-                title: const Text('Possum Mattern Studios'),
-                subtitle: const Text('Visit our website'),
+                title: const Text('Website'),
+                subtitle: const Text('possummatternstudios.com'),
                 trailing: const Icon(Icons.open_in_new, size: 20),
                 onTap: () {
                   HapticsService.feedback(FeedbackType.selection);
@@ -732,9 +746,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 },
               ),
               ListTile(
-                leading: Icon(Icons.support, color: colorScheme.primary),
-                title: const Text('Support'),
-                subtitle: const Text('Get help and support'),
+                leading: Icon(Icons.mail_outline, color: colorScheme.primary),
+                title: const Text('Contact'),
+                subtitle: const Text('Questions or feedback—we read every note'),
                 trailing: const Icon(Icons.open_in_new, size: 20),
                 onTap: () {
                   HapticsService.feedback(FeedbackType.selection);
@@ -744,14 +758,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ListTile(
                 leading:
                     Icon(Icons.privacy_tip, color: colorScheme.primary),
-                title: const Text('Privacy Policy'),
-                subtitle: const Text('Read our privacy policy'),
+                title: const Text('Privacy'),
+                subtitle: const Text('How we handle your data'),
                 trailing: const Icon(Icons.open_in_new, size: 20),
                 onTap: () {
                   HapticsService.feedback(FeedbackType.selection);
                   _openExternalUrl(
                       'https://positivephill.github.io/positive-phill/privacy.html');
                 },
+              ),
+              Padding(
+                padding: AppSpacing.horizontalLg.add(
+                  const EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.xs),
+                ),
+                child: Text(
+                  'Positive Phill supports daily wellbeing and is not a substitute '
+                  'for professional care.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                        height: 1.4,
+                      ),
+                ),
               ),
               const SizedBox(height: AppSpacing.xl),
             ],
