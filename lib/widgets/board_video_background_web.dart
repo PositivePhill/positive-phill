@@ -110,8 +110,6 @@ class _BoardVideoBackgroundState extends State<BoardVideoBackground> {
       void markReady(html.Event? _) {
         if (!mounted || _presenting || _errorCleanedUp) return;
         _presenting = true;
-        // ignore: avoid_print
-        print('[board-video-web] canplay');
         _deferToNextFrame(() {
           if (!mounted) return;
           setState(() {});
@@ -131,8 +129,7 @@ class _BoardVideoBackgroundState extends State<BoardVideoBackground> {
             video.error?.message ??
             video.error?.code.toString() ??
             'unknown';
-        // ignore: avoid_print
-        print('[board-video-web] error=$message');
+        _log('error: $message');
         await _failCleanupAfterError();
       }
 
@@ -184,8 +181,7 @@ class _BoardVideoBackgroundState extends State<BoardVideoBackground> {
     _viewType = 'board-video-${identityHashCode(this)}';
 
     final asset = widget.preset.bundledAssetPath();
-    // ignore: avoid_print
-    print('[board-video] init asset=$asset');
+    _log('init asset=$asset');
 
     if (asset == null) {
       _log('no bundled asset — scheduling preset clear');
@@ -196,8 +192,7 @@ class _BoardVideoBackgroundState extends State<BoardVideoBackground> {
     try {
       final src =
           _resolvedDocumentBase().resolve('assets/$asset').toString();
-      // ignore: avoid_print
-      print('[board-video-web] src=$src');
+      _log('resolved src=$src');
       _registerFactory(src);
       _factoryRegistered = true;
     } catch (e, st) {

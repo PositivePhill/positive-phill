@@ -219,7 +219,6 @@ class StorageService {
       final prefs = await SharedPreferences.getInstance();
       raw = prefs.getString(_boardVideoPresetKey);
       final preset = BoardVideoPreset.fromStorageId(raw);
-      print('[board-video] getBoardVideoPreset raw=$raw parsed=$preset');
       final invalidStored = raw != null &&
           raw.trim().isNotEmpty &&
           preset == BoardVideoPreset.none;
@@ -236,9 +235,6 @@ class StorageService {
       return preset;
     } catch (e) {
       debugPrint('Failed to load board_video_preset: $e');
-      print(
-        '[board-video] getBoardVideoPreset raw=$raw parsed=${BoardVideoPreset.none}',
-      );
       boardVideoPreset.value = BoardVideoPreset.none;
       return BoardVideoPreset.none;
     }

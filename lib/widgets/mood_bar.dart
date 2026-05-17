@@ -70,11 +70,19 @@ class MoodBar extends StatelessWidget {
   final Future<void> Function(DailyMood) onMoodSelected;
   final List<Shadow>? textShadows;
 
+  /// When set (e.g. light mode + scrim), overrides heading color for contrast.
+  final Color? sectionTitleColor;
+
+  /// Slightly opaque chip fill for readability on busy backdrops.
+  final bool chipElevatedSurface;
+
   const MoodBar({
     super.key,
     required this.selectedMood,
     required this.onMoodSelected,
     this.textShadows,
+    this.sectionTitleColor,
+    this.chipElevatedSurface = false,
   });
 
   @override
@@ -92,7 +100,7 @@ class MoodBar extends StatelessWidget {
             child: Text(
               'How are you feeling today?',
               style: textTheme.titleSmall?.copyWith(
-                color: colorScheme.onSurface,
+                color: sectionTitleColor ?? colorScheme.onSurface,
                 fontWeight: FontWeight.w600,
                 shadows: textShadows,
               ),
@@ -124,7 +132,9 @@ class MoodBar extends StatelessWidget {
                   selected: isSelected,
                   onSelected: (_) => unawaited(onMoodSelected(mood)),
                   selectedColor: colorScheme.secondaryContainer,
-                  backgroundColor: colorScheme.surface,
+                  backgroundColor: chipElevatedSurface
+                      ? colorScheme.surfaceContainerHigh
+                      : colorScheme.surface,
                 ),
               );
             }).toList(),
