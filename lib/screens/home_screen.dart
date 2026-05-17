@@ -162,6 +162,45 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// Text shadows for labels on photo/video/scrimmed backdrops (and optional user text backlight).
+  List<Shadow>? _readabilityTextShadows({
+    required bool needsReadabilityScrim,
+    required bool textBacklight,
+    required Brightness brightness,
+  }) {
+    if (!needsReadabilityScrim && !textBacklight) return null;
+    if (needsReadabilityScrim) {
+      if (brightness == Brightness.light) {
+        return [
+          Shadow(
+            color: Colors.black.withValues(alpha: 0.58),
+            offset: const Offset(0, 1),
+            blurRadius: 6,
+          ),
+          Shadow(
+            color: Colors.black.withValues(alpha: 0.22),
+            offset: Offset.zero,
+            blurRadius: 12,
+          ),
+        ];
+      }
+      return [
+        Shadow(
+          color: Colors.black.withValues(alpha: 0.72),
+          offset: const Offset(0, 1),
+          blurRadius: 3,
+        ),
+      ];
+    }
+    return [
+      Shadow(
+        color: Colors.black.withValues(alpha: 0.6),
+        offset: const Offset(1, 1),
+        blurRadius: 4,
+      ),
+    ];
+  }
+
   // ── Zen mode ─────────────────────────────────────────────────────────────
 
   Future<void> _loadZenMode() async {
@@ -434,14 +473,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   hasCustomBg || (videoChosen && _boardVideoPresenting.value);
               final suppressPlainBackgroundTip = hasCustomBg || videoChosen;
 
-              final textBacklightShadows = textBacklight
-                  ? [
-                      Shadow(
-                        color: Colors.black.withValues(alpha: 0.6),
-                        offset: const Offset(1, 1),
-                        blurRadius: 4,
-                      ),
-                    ]
+              final readabilityShadows = _readabilityTextShadows(
+                needsReadabilityScrim: needsReadabilityScrim,
+                textBacklight: textBacklight,
+                brightness: Theme.of(context).brightness,
+              );
+              final lightBusyHeadingColor = needsReadabilityScrim &&
+                      Theme.of(context).brightness == Brightness.light
+                  ? Colors.white.withValues(alpha: 0.98)
                   : null;
 
               return Stack(
@@ -520,7 +559,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                     color: colorScheme.primary,
                                                     fontWeight: FontWeight.bold,
                                                     shadows:
-                                                        textBacklightShadows,
+                                                        readabilityShadows,
                                                   ),
                                                 ),
                                               ),
@@ -559,7 +598,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       if (!_zenMode) ...[
                                         const SizedBox(height: AppSpacing.md),
                                         SosEntryCard(
-                                          textShadows: textBacklightShadows,
+                                          textShadows: readabilityShadows,
                                         ),
                                       ],
 
@@ -612,7 +651,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                             color: colorScheme
                                                                 .onSurface,
                                                             shadows:
-                                                                textBacklightShadows,
+                                                                readabilityShadows,
                                                           ),
                                                         ),
                                                         const SizedBox(
@@ -649,8 +688,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                         const SizedBox(height: AppSpacing.md),
                                         Center(
                                           child: StreakDisplay(
-                                              streak:
-                                                  userProvider.progress.streak),
+                                            streak:
+                                                userProvider.progress.streak,
+                                            textShadows: readabilityShadows,
+                                            stressedBackdrop:
+                                                needsReadabilityScrim,
+                                          ),
                                         ),
                                       ],
 
@@ -660,7 +703,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                         MoodBar(
                                           selectedMood: _selectedMood,
                                           onMoodSelected: _onMoodSelected,
-                                          textShadows: textBacklightShadows,
+                                          textShadows: readabilityShadows,
+                                          sectionTitleColor: lightBusyHeadingColor,
+                                          chipElevatedSurface:
+                                              needsReadabilityScrim,
                                         ),
                                       ],
 
@@ -704,7 +750,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   color: colorScheme
                                                       .onSecondaryContainer,
                                                   fontStyle: FontStyle.italic,
-                                                  shadows: textBacklightShadows,
+                                                  shadows: readabilityShadows,
                                                 ),
                                               ),
                                             ),
@@ -720,9 +766,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                             "Today's Affirmations",
                                             style:
                                                 textTheme.titleLarge?.copyWith(
-                                              color: colorScheme.onSurface,
+                                              color: lightBusyHeadingColor ??
+                                                  colorScheme.onSurface,
                                               fontWeight: FontWeight.bold,
-                                              shadows: textBacklightShadows,
+                                              shadows: readabilityShadows,
                                             ),
                                           ),
                                         ),
@@ -730,6 +777,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                         CategorySelector(
                                           selectedCategory: _selectedCategory,
                                           onCategoryChanged: _onCategoryChanged,
+                                          elevatedChipSurface:
+                                              needsReadabilityScrim,
                                         ),
                                       ] else ...[
                                         const SizedBox(height: AppSpacing.lg),
@@ -953,11 +1002,13 @@ class AppScrollBehavior extends MaterialScrollBehavior {
 class CategorySelector extends StatelessWidget {
   final AffirmationCategory? selectedCategory;
   final Future<void> Function(AffirmationCategory?) onCategoryChanged;
+  final bool elevatedChipSurface;
 
   const CategorySelector({
     super.key,
     required this.selectedCategory,
     required this.onCategoryChanged,
+    this.elevatedChipSurface = false,
   });
 
   @override
@@ -988,7 +1039,9 @@ class CategorySelector extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               selected: selectedCategory == null,
               onSelected: (_) => onCategoryChanged(null),
-              backgroundColor: colorScheme.surface,
+              backgroundColor: elevatedChipSurface
+                  ? colorScheme.surfaceContainerHigh
+                  : colorScheme.surface,
               selectedColor: colorScheme.secondaryContainer,
             ),
           ),
@@ -1012,7 +1065,9 @@ class CategorySelector extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 selected: isSelected,
                 onSelected: (_) => onCategoryChanged(category),
-                backgroundColor: colorScheme.surface,
+                backgroundColor: elevatedChipSurface
+                    ? colorScheme.surfaceContainerHigh
+                    : colorScheme.surface,
                 selectedColor: colorScheme.secondaryContainer,
               ),
             );
