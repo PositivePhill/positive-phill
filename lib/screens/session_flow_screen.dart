@@ -261,7 +261,6 @@ class _SessionFlowScreenState extends State<SessionFlowScreen> {
           leading: IconButton(
             icon: Icon(Icons.close, color: colorScheme.onSurface),
             onPressed: () {
-              _onPopInvokedOrClose();
               context.pop();
             },
           ),
