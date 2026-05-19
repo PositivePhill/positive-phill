@@ -1,8 +1,13 @@
+import 'dart:async' show Timer, unawaited;
+import 'dart:math' show max;
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:positive_phill/models/affirmation.dart';
 import 'package:positive_phill/models/daily_quests.dart';
+import 'package:positive_phill/providers/ritual_provider.dart';
+import 'package:positive_phill/providers/tts_provider.dart';
 import 'package:positive_phill/providers/user_provider.dart';
 import 'package:positive_phill/quest_helper.dart';
 import 'package:positive_phill/services/affirmations_service.dart';
@@ -11,6 +16,7 @@ import 'package:positive_phill/services/haptics_service.dart';
 import 'package:positive_phill/theme.dart';
 import 'package:positive_phill/widgets/affirmation_card.dart';
 import 'package:positive_phill/widgets/celebration_animation.dart';
+import 'package:positive_phill/widgets/ritual_timer_bar.dart';
 
 class SessionFlowScreen extends StatefulWidget {
   const SessionFlowScreen({super.key});
@@ -20,25 +26,159 @@ class SessionFlowScreen extends StatefulWidget {
 }
 
 class _SessionFlowScreenState extends State<SessionFlowScreen> {
+  static const int _minGuidedAdvanceSec = 10;
+  static const int _autoReadDebounceMs = 180;
+
   final AffirmationsService _affirmationsService = AffirmationsService();
   final AdsService _adsService = AdsService();
-  /* unused catergory we might use later or delete if not needed */
- /* List<AffirmationCategory> _selectedCategories = []; */
+
   List<Affirmation> _sessionPack = [];
   int _currentIndex = 0;
   bool _sessionStarted = false;
   bool _sessionCompleted = false;
   bool _showCelebration = false;
+  bool _completionInFlight = false;
+
+  RitualProvider? _ritual;
+  bool _ritualListenerAttached = false;
+
+  Timer? _autoReadDebounce;
+  Timer? _guidedAdvanceTimer;
+
+  bool _lastRitualRunning = false;
 
   @override
   void initState() {
     super.initState();
     _adsService.initialize();
     _adsService.loadInterstitialAd();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<RitualProvider>().reset();
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _ritual ??= context.read<RitualProvider>();
+    _attachRitualListenerIfNeeded();
+  }
+
+  void _attachRitualListenerIfNeeded() {
+    if (_ritualListenerAttached || _ritual == null) return;
+    _lastRitualRunning = _ritual!.isRunning;
+    _ritual!.addListener(_onRitualRunningChanged);
+    _ritualListenerAttached = true;
+  }
+
+  void _onRitualRunningChanged() {
+    if (!mounted || _ritual == null) return;
+    final running = _ritual!.isRunning;
+    if (running == _lastRitualRunning) return;
+    _lastRitualRunning = running;
+    if (!running) {
+      _cancelGuidedAdvanceTimerOnly();
+    }
+  }
+
+  void _cancelGuidedAdvanceTimerOnly() {
+    _guidedAdvanceTimer?.cancel();
+    _guidedAdvanceTimer = null;
+  }
+
+  void _cancelLocalTimersOnly() {
+    _autoReadDebounce?.cancel();
+    _autoReadDebounce = null;
+    _cancelGuidedAdvanceTimerOnly();
+  }
+
+  int _advanceIntervalSeconds(RitualProvider ritual) {
+    final n = _sessionPack.length;
+    if (n <= 0) return _minGuidedAdvanceSec;
+    final raw = (ritual.selectedLength.seconds / n).ceil();
+    return max(_minGuidedAdvanceSec, raw);
+  }
+
+  void _scheduleGuidedAdvanceTimer() {
+    _cancelGuidedAdvanceTimerOnly();
+    if (!mounted || _sessionPack.isEmpty || _sessionCompleted || _completionInFlight) return;
+    if (_ritual == null || !_ritual!.isRunning) return;
+
+    final secs = _advanceIntervalSeconds(_ritual!);
+    _guidedAdvanceTimer = Timer.periodic(Duration(seconds: secs), (_) {
+      if (!mounted) return;
+      if (_sessionCompleted || _completionInFlight) {
+        _cancelGuidedAdvanceTimerOnly();
+        return;
+      }
+      if (!context.read<RitualProvider>().isRunning) {
+        _cancelGuidedAdvanceTimerOnly();
+        return;
+      }
+      _advanceGuidedStep();
+    });
+  }
+
+  void _advanceGuidedStep() {
+    if (!mounted ||
+        !_sessionStarted ||
+        _sessionPack.isEmpty ||
+        _sessionCompleted ||
+        _completionInFlight) {
+      return;
+    }
+    if (_currentIndex >= _sessionPack.length - 1) {
+      _cancelGuidedAdvanceTimerOnly();
+      return;
+    }
+
+    setState(() => _currentIndex++);
+    _debouncedSpeakForIndex(_currentIndex);
+  }
+
+  void _debouncedSpeakForIndex(int index) {
+    _autoReadDebounce?.cancel();
+    if (!_sessionStarted || _sessionPack.isEmpty) return;
+
+    _autoReadDebounce = Timer(const Duration(milliseconds: _autoReadDebounceMs), () {
+      if (!mounted) return;
+      if (index < 0 || index >= _sessionPack.length) return;
+      final tts = context.read<TtsProvider>();
+      if (!tts.autoRead || !tts.voiceEnabled) return;
+      unawaited(tts.speak(_sessionPack[index].text));
+    });
+  }
+
+  void _handleRitualStarted() {
+    if (!mounted || _sessionPack.isEmpty || _sessionCompleted || _completionInFlight) return;
+    _cancelGuidedAdvanceTimerOnly();
+    _autoReadDebounce?.cancel();
+
+    final tts = context.read<TtsProvider>();
+    if (tts.autoRead && tts.voiceEnabled) {
+      unawaited(tts.speak(_sessionPack[_currentIndex].text));
+    }
+    _scheduleGuidedAdvanceTimer();
+  }
+
+  void _handleRitualPaused() {
+    _cancelGuidedAdvanceTimerOnly();
+    _autoReadDebounce?.cancel();
+  }
+
+  void _handleRitualReset() {
+    _cancelGuidedAdvanceTimerOnly();
+    _autoReadDebounce?.cancel();
   }
 
   @override
   void dispose() {
+    _cancelLocalTimersOnly();
+    if (_ritualListenerAttached && _ritual != null) {
+      _ritual!.removeListener(_onRitualRunningChanged);
+    }
+    _ritual?.reset();
     _adsService.dispose();
     super.dispose();
   }
@@ -46,6 +186,8 @@ class _SessionFlowScreenState extends State<SessionFlowScreen> {
   Future<void> _startSessionWithCategories(List<AffirmationCategory> categories) async {
     final pack = await _affirmationsService.getSessionPackForCategories(categories);
     if (!mounted) return;
+    context.read<RitualProvider>().reset();
+    _cancelLocalTimersOnly();
     setState(() {
       _sessionPack = pack;
       _sessionStarted = true;
@@ -53,47 +195,75 @@ class _SessionFlowScreenState extends State<SessionFlowScreen> {
     });
   }
 
+  void _onPopInvokedOrClose() {
+    _cancelLocalTimersOnly();
+    context.read<RitualProvider>().pause();
+  }
+
   void _onNext() {
+    if (_sessionCompleted || _completionInFlight) return;
     HapticsService.feedback(FeedbackType.selection);
-    
+
     if (_currentIndex < _sessionPack.length - 1) {
       setState(() => _currentIndex++);
+      _debouncedSpeakForIndex(_currentIndex);
     } else {
-      _completeSession();
+      unawaited(_completeSession());
     }
   }
 
   Future<void> _completeSession() async {
-    final userProvider = context.read<UserProvider>();
-    await userProvider.completeSession();
-    // Quest: complete today's session (centralised helper)
-    if (mounted) await completeQuest(context, QuestType.completeSession);
+    if (_sessionCompleted || _completionInFlight) return;
+    _completionInFlight = true;
 
-    setState(() {
-      _sessionCompleted = true;
-      _showCelebration = true;
-    });
+    _cancelGuidedAdvanceTimerOnly();
+    _autoReadDebounce?.cancel();
+    context.read<RitualProvider>().pause();
 
-    if (_adsService.isInterstitialAdReady) {
-      await Future.delayed(const Duration(seconds: 2));
-      await _adsService.showInterstitialAd();
+    try {
+      final userProvider = context.read<UserProvider>();
+      await userProvider.completeSession();
+      if (!mounted) return;
+      await completeQuest(context, QuestType.completeSession);
+      if (!mounted) return;
+
+      setState(() {
+        _sessionCompleted = true;
+        _showCelebration = true;
+      });
+
+      if (_adsService.isInterstitialAdReady) {
+        await Future.delayed(const Duration(seconds: 2));
+        await _adsService.showInterstitialAd();
+      }
+    } finally {
+      _completionInFlight = false;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    /* not currently used but might use later or delete */
-  /*  final textTheme = Theme.of(context).textTheme; */
 
-    return CelebrationAnimation(
-      trigger: _showCelebration,
-      child: Scaffold(
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) {
+          _cancelLocalTimersOnly();
+          context.read<RitualProvider>().pause();
+        }
+      },
+      child: CelebrationAnimation(
+        trigger: _showCelebration,
+        child: Scaffold(
         appBar: AppBar(
           title: Text('Daily Session', style: TextStyle(color: colorScheme.onSurface)),
           leading: IconButton(
             icon: Icon(Icons.close, color: colorScheme.onSurface),
-            onPressed: () => context.pop(),
+            onPressed: () {
+              _onPopInvokedOrClose();
+              context.pop();
+            },
           ),
         ),
         body: SafeArea(
@@ -106,8 +276,16 @@ class _SessionFlowScreenState extends State<SessionFlowScreen> {
                       currentIndex: _currentIndex,
                       totalCount: _sessionPack.length,
                       onNext: _onNext,
+                      pacingBar: RitualTimerBar(
+                        title: 'Session timer',
+                        subtitle: 'Starts guided pacing — advance through each card.',
+                        onRitualStarted: _handleRitualStarted,
+                        onRitualPaused: _handleRitualPaused,
+                        onRitualReset: _handleRitualReset,
+                      ),
                     ),
         ),
+      ),
       ),
     );
   }
@@ -283,6 +461,7 @@ class SessionContent extends StatelessWidget {
   final int currentIndex;
   final int totalCount;
   final VoidCallback onNext;
+  final RitualTimerBar pacingBar;
 
   const SessionContent({
     super.key,
@@ -290,6 +469,7 @@ class SessionContent extends StatelessWidget {
     required this.currentIndex,
     required this.totalCount,
     required this.onNext,
+    required this.pacingBar,
   });
 
   @override
@@ -300,7 +480,10 @@ class SessionContent extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          pacingBar,
+          const SizedBox(height: AppSpacing.md),
           LinearProgressIndicator(
             value: (currentIndex + 1) / totalCount,
             backgroundColor: colorScheme.surfaceContainerHighest,
@@ -309,6 +492,7 @@ class SessionContent extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           Text(
             '${currentIndex + 1} of $totalCount',
+            textAlign: TextAlign.center,
             style: textTheme.bodyMedium?.copyWith(
               color: colorScheme.onSurfaceVariant,
             ),
