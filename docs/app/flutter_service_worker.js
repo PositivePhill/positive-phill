@@ -3,14 +3,14 @@ const MANIFEST = 'flutter-app-manifest';
 const TEMP = 'flutter-temp-cache';
 const CACHE_NAME = 'flutter-app-cache';
 
-const RESOURCES = {"assets/AssetManifest.bin": "7469c407ab931c7fb34439f6ba2730e0",
-"assets/AssetManifest.bin.json": "247bf51d0930b26c8019c391492abc1f",
+const RESOURCES = {"assets/AssetManifest.bin": "0c8986b1d702763ff789fbd5f4d923bb",
+"assets/AssetManifest.bin.json": "6b5a3f4974e1475948fa53981579e1fd",
 "assets/assets/affirmations/core.json": "2224e14f956513757bc5c2fa1ef1ef68",
 "assets/assets/affirmations/developer_zen.json": "2c2e8820f94975d9eb4b97d98595e0e1",
 "assets/assets/affirmations/morning_energy.json": "0398eb7e3d84a9ad87c2bf235d9ac9f7",
 "assets/assets/affirmations/sleep_wind_down.json": "d23d4c54b7cbd872ba67e14b590a1e0c",
 "assets/assets/audio/campfire_loop.mp3": "c2b98c4cd8d09b563ac9539199c1c284",
-"assets/assets/audio/Chill_pad_loop.mp3": "5672d5a05587ac3d6bab2435136cd5b5",
+"assets/assets/audio/chill_pad_loop.mp3": "5672d5a05587ac3d6bab2435136cd5b5",
 "assets/assets/audio/fishing_lake_loop.mp3": "b0aa96b1c653589ccd90d7039524342e",
 "assets/assets/audio/forest_birds_loop.mp3": "9f3c3327e1fda0c711883d4992f9bb22",
 "assets/assets/audio/light_thunder_loop.mp3": "005774444db53fc03c9e9ad2905f69df",
@@ -44,7 +44,7 @@ const RESOURCES = {"assets/AssetManifest.bin": "7469c407ab931c7fb34439f6ba2730e0
 "canvaskit/skwasm_heavy.wasm": "b0be7910760d205ea4e011458df6ee01",
 "favicon.png": "a9d8631a70a7d9f2ecc7e76edeb8cd71",
 "flutter.js": "24bc71911b75b5f8135c949e27a2984e",
-"flutter_bootstrap.js": "b8333671cd062100fe6f702d66434388",
+"flutter_bootstrap.js": "ed00e1f88be14bd5e35e1e1525ff5bda",
 "icons/Icon-192.png": "8cb2a69a2995c2caa75c89febf628f0a",
 "icons/Icon-512.png": "e61d61facec517bda2aea8a6006669e8",
 "icons/Icon-maskable-192.png": "8cb2a69a2995c2caa75c89febf628f0a",
