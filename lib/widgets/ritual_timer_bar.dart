@@ -5,17 +5,22 @@ import 'package:positive_phill/providers/ritual_provider.dart';
 import 'package:positive_phill/services/haptics_service.dart';
 import 'package:positive_phill/theme.dart';
 
-/// Countdown controls for Rescue Flow (no gamification hooks).
-///
-/// Callbacks mirror user actions — used by Rescue Flow for guided auto-advance.
+/// Countdown controls (no gamification hooks). Daily Session and Rescue Flow
+/// reuse this bar; lengths and remaining time come from [RitualProvider].
 class RitualTimerBar extends StatelessWidget {
   const RitualTimerBar({
     super.key,
+    this.title,
+    this.subtitle,
     this.onRitualStarted,
     this.onRitualPaused,
     this.onRitualReset,
   });
 
+  /// Defaults to `'Ritual timer'` when null (Rescue Flow).
+  final String? title;
+  /// Optional line below the title (e.g. Daily Session pacing hint).
+  final String? subtitle;
   final VoidCallback? onRitualStarted;
   final VoidCallback? onRitualPaused;
   final VoidCallback? onRitualReset;
@@ -41,12 +46,21 @@ class RitualTimerBar extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Ritual timer',
+              title ?? 'Ritual timer',
               style: textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: colorScheme.onSurface,
               ),
             ),
+            if (subtitle != null) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                subtitle!,
+                style: textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
             const SizedBox(height: AppSpacing.sm),
             Wrap(
               spacing: AppSpacing.sm,
