@@ -108,37 +108,38 @@ class MoodBar extends StatelessWidget {
             ),
           ),
         ),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: DailyMood.values.map((mood) {
-              final isSelected = selectedMood == mood;
-              return Padding(
-                padding: const EdgeInsets.only(right: AppSpacing.sm),
-                child: ChoiceChip(
-                  label: Text(
-                    '${mood.emoji} ${mood.label}',
-                    style: textTheme.bodySmall?.copyWith(
-                      color: isSelected
-                          ? colorScheme.onSecondaryContainer
-                          : colorScheme.onSurface,
-                      fontWeight: isSelected
-                          ? FontWeight.w600
-                          : FontWeight.w500,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  labelPadding: const EdgeInsets.symmetric(horizontal: 4),
-                  selected: isSelected,
-                  onSelected: (_) => unawaited(onMoodSelected(mood)),
-                  selectedColor: colorScheme.secondaryContainer,
-                  backgroundColor: chipElevatedSurface
-                      ? colorScheme.surfaceContainerHigh
-                      : colorScheme.surface,
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: DailyMood.values.map((mood) {
+            final isSelected = selectedMood == mood;
+            return ChoiceChip(
+              label: Text(
+                '${mood.emoji} ${mood.label}',
+                style: textTheme.bodySmall?.copyWith(
+                  color: isSelected
+                      ? colorScheme.onSecondaryContainer
+                      : colorScheme.onSurface,
+                  fontWeight:
+                      isSelected ? FontWeight.w600 : FontWeight.w500,
                 ),
-              );
-            }).toList(),
-          ),
+                // Wrap fits each chip on one line; only very large text on
+                // narrow screens breaks the label at the space.
+                textAlign: TextAlign.center,
+                softWrap: true,
+                maxLines: 2,
+                overflow: TextOverflow.visible,
+              ),
+              labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+              selected: isSelected,
+              onSelected: (_) => unawaited(onMoodSelected(mood)),
+              selectedColor: colorScheme.secondaryContainer,
+              backgroundColor: chipElevatedSurface
+                  ? colorScheme.surfaceContainerHigh
+                  : colorScheme.surface,
+            );
+          }).toList(),
         ),
       ],
     );

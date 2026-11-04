@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderAbstractViewport;
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:positive_phill/models/affirmation.dart';
@@ -556,10 +557,25 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   style: textTheme
                                                       .headlineMedium
                                                       ?.copyWith(
-                                                    color: colorScheme.primary,
+                                                    color: needsReadabilityScrim
+                                                        ? Colors.white
+                                                            .withValues(
+                                                                alpha: 0.98)
+                                                        : colorScheme.primary,
                                                     fontWeight: FontWeight.bold,
-                                                    shadows:
-                                                        readabilityShadows,
+                                                    shadows: needsReadabilityScrim
+                                                        ? [
+                                                            Shadow(
+                                                              color: colorScheme
+                                                                  .primary
+                                                                  .withValues(
+                                                                      alpha:
+                                                                          0.55),
+                                                              blurRadius: 12,
+                                                            ),
+                                                            ...?readabilityShadows,
+                                                          ]
+                                                        : readabilityShadows,
                                                   ),
                                                 ),
                                               ),
@@ -650,8 +666,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                 FontWeight.w600,
                                                             color: colorScheme
                                                                 .onSurface,
-                                                            shadows:
-                                                                readabilityShadows,
                                                           ),
                                                         ),
                                                         const SizedBox(
@@ -750,7 +764,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   color: colorScheme
                                                       .onSecondaryContainer,
                                                   fontStyle: FontStyle.italic,
-                                                  shadows: readabilityShadows,
                                                 ),
                                               ),
                                             ),
@@ -999,10 +1012,13 @@ class AppScrollBehavior extends MaterialScrollBehavior {
 
 // ── CategorySelector ──────────────────────────────────────────────────────────
 
-class CategorySelector extends StatelessWidget {
+class CategorySelector extends StatefulWidget {
   final AffirmationCategory? selectedCategory;
   final Future<void> Function(AffirmationCategory?) onCategoryChanged;
   final bool elevatedChipSurface;
+
+  /// At or above this width all chips are shown in a wrapping grid.
+  static const double wrapBreakpoint = 600;
 
   const CategorySelector({
     super.key,
@@ -1012,68 +1028,193 @@ class CategorySelector extends StatelessWidget {
   });
 
   @override
+  State<CategorySelector> createState() => _CategorySelectorState();
+}
+
+class _CategorySelectorState extends State<CategorySelector> {
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _selectedChipKey = GlobalKey();
+  bool _hasMoreToRight = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_updateScrollHint);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updateScrollHint();
+      _revealSelectedChip(animate: false);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant CategorySelector oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedCategory != widget.selectedCategory) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _revealSelectedChip());
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_updateScrollHint);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _updateScrollHint() {
+    if (!mounted || !_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    final hasMore = position.maxScrollExtent > 0 &&
+        position.pixels < position.maxScrollExtent - 1;
+    if (hasMore != _hasMoreToRight) {
+      setState(() => _hasMoreToRight = hasMore);
+    }
+  }
+
+  /// Centers the selected chip when it is clipped. Drives only the horizontal
+  /// row's controller so the enclosing Home page never scrolls.
+  void _revealSelectedChip({bool animate = true}) {
+    if (!mounted || !_scrollController.hasClients) return;
+    final chip = _selectedChipKey.currentContext?.findRenderObject();
+    if (chip == null || !chip.attached) return;
+    final viewport = RenderAbstractViewport.maybeOf(chip);
+    if (viewport == null) return;
+
+    final position = _scrollController.position;
+    final leadingOffset = viewport.getOffsetToReveal(chip, 0).offset;
+    final trailingOffset = viewport.getOffsetToReveal(chip, 1).offset;
+    final fullyVisible = position.pixels >= trailingOffset - 0.5 &&
+        position.pixels <= leadingOffset + 0.5;
+    if (fullyVisible) return;
+
+    final target = viewport
+        .getOffsetToReveal(chip, 0.5)
+        .offset
+        .clamp(position.minScrollExtent, position.maxScrollExtent);
+    if (animate) {
+      unawaited(position.animateTo(
+        target,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+      ));
+    } else {
+      position.jumpTo(target);
+    }
+  }
+
+  Widget _chip({
+    required ColorScheme colorScheme,
+    required AffirmationCategory? category,
+    required String label,
+  }) {
+    final isSelected = widget.selectedCategory == category;
+    return FilterChip(
+      key: isSelected ? _selectedChipKey : null,
+      label: Text(
+        label,
+        style: TextStyle(
+          color: isSelected
+              ? colorScheme.onSecondaryContainer
+              : colorScheme.onSurface,
+          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+        ),
+        softWrap: false,
+        overflow: TextOverflow.visible,
+      ),
+      labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      selected: isSelected,
+      onSelected: (_) => widget.onCategoryChanged(category),
+      backgroundColor: widget.elevatedChipSurface
+          ? colorScheme.surfaceContainerHigh
+          : colorScheme.surface,
+      selectedColor: colorScheme.secondaryContainer,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.sm),
-            child: FilterChip(
-              label: Text(
-                'All',
-                style: TextStyle(
-                  color: selectedCategory == null
-                      ? colorScheme.onSecondaryContainer
-                      : colorScheme.onSurface,
-                  fontWeight: selectedCategory == null
-                      ? FontWeight.w600
-                      : FontWeight.w500,
-                ),
-                softWrap: false,
-                overflow: TextOverflow.visible,
-              ),
-              labelPadding: const EdgeInsets.symmetric(horizontal: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              selected: selectedCategory == null,
-              onSelected: (_) => onCategoryChanged(null),
-              backgroundColor: elevatedChipSurface
-                  ? colorScheme.surfaceContainerHigh
-                  : colorScheme.surface,
-              selectedColor: colorScheme.secondaryContainer,
-            ),
-          ),
-          ...AffirmationCategory.values.map((category) {
-            final isSelected = selectedCategory == category;
-            return Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.sm),
-              child: FilterChip(
-                label: Text(
-                  '${category.emoji} ${category.displayName}',
-                  style: TextStyle(
-                    color: isSelected
-                        ? colorScheme.onSecondaryContainer
-                        : colorScheme.onSurface,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+    final chips = <Widget>[
+      _chip(colorScheme: colorScheme, category: null, label: 'All'),
+      for (final category in AffirmationCategory.values)
+        _chip(
+          colorScheme: colorScheme,
+          category: category,
+          label: '${category.emoji} ${category.displayName}',
+        ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= CategorySelector.wrapBreakpoint) {
+          return Wrap(
+            alignment: WrapAlignment.center,
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: chips,
+          );
+        }
+
+        return Stack(
+          children: [
+            NotificationListener<ScrollMetricsNotification>(
+              onNotification: (_) {
+                WidgetsBinding.instance
+                    .addPostFrameCallback((_) => _updateScrollHint());
+                return false;
+              },
+              child: ShaderMask(
+                blendMode: BlendMode.dstIn,
+                shaderCallback: (rect) => LinearGradient(
+                  colors: [
+                    Colors.white,
+                    Colors.white,
+                    _hasMoreToRight ? Colors.transparent : Colors.white,
+                  ],
+                  stops: const [0, 0.86, 1],
+                ).createShader(rect),
+                child: ScrollConfiguration(
+                  behavior: const AppScrollBehavior(),
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        for (final chip in chips)
+                          Padding(
+                            padding:
+                                const EdgeInsets.only(right: AppSpacing.sm),
+                            child: chip,
+                          ),
+                      ],
+                    ),
                   ),
-                  softWrap: false,
-                  overflow: TextOverflow.visible,
                 ),
-                labelPadding: const EdgeInsets.symmetric(horizontal: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                selected: isSelected,
-                onSelected: (_) => onCategoryChanged(category),
-                backgroundColor: elevatedChipSurface
-                    ? colorScheme.surfaceContainerHigh
-                    : colorScheme.surface,
-                selectedColor: colorScheme.secondaryContainer,
               ),
-            );
-          }),
-        ],
-      ),
+            ),
+            if (_hasMoreToRight)
+              Positioned(
+                top: 0,
+                bottom: 0,
+                right: 0,
+                child: IgnorePointer(
+                  child: ExcludeSemantics(
+                    child: Center(
+                      child: Icon(
+                        Icons.chevron_right,
+                        key: const ValueKey('category-scroll-hint'),
+                        size: 20,
+                        color: colorScheme.onSurface.withValues(alpha: 0.75),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }

@@ -99,15 +99,19 @@ class _AffirmationCardState extends State<AffirmationCard>
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    final List<Shadow>? textShadows = widget.textBacklightEnabled
-        ? [
-            Shadow(
-              color: Colors.black.withValues(alpha: 0.6),
-              offset: const Offset(1, 1),
-              blurRadius: 4,
-            ),
-          ]
-        : null;
+    final textColor = colorScheme.onPrimaryContainer;
+    // The card is opaque: a dark backlight only helps light text; on dark
+    // text it renders as a smudge.
+    final List<Shadow>? textShadows =
+        widget.textBacklightEnabled && textColor.computeLuminance() > 0.5
+            ? [
+                Shadow(
+                  color: Colors.black.withValues(alpha: 0.45),
+                  offset: const Offset(0, 1),
+                  blurRadius: 3,
+                ),
+              ]
+            : null;
 
     return Container(
       margin: const EdgeInsets.symmetric(
@@ -152,7 +156,7 @@ class _AffirmationCardState extends State<AffirmationCard>
                   child: Text(
                     widget.affirmation.text,
                     style: textTheme.headlineSmall?.copyWith(
-                      color: colorScheme.onPrimaryContainer,
+                      color: textColor,
                       height: 1.45,
                       shadows: textShadows,
                     ),
