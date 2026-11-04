@@ -32,6 +32,49 @@ import 'package:positive_phill/widgets/streak_heatmap.dart';
 import 'package:positive_phill/widgets/xp_progress_bar.dart';
 import 'package:positive_phill/widgets/board_video_background.dart';
 
+/// Text shadows for Home labels on photo/video/scrimmed backdrops (and the
+/// optional user text backlight).
+@visibleForTesting
+List<Shadow>? homeReadabilityTextShadows({
+  required bool needsReadabilityScrim,
+  required bool textBacklight,
+  required Brightness brightness,
+}) {
+  if (!needsReadabilityScrim && !textBacklight) return null;
+  if (needsReadabilityScrim) {
+    if (brightness == Brightness.light) {
+      return [
+        Shadow(
+          color: Colors.black.withValues(alpha: 0.58),
+          offset: const Offset(0, 1),
+          blurRadius: 6,
+        ),
+        Shadow(
+          color: Colors.black.withValues(alpha: 0.22),
+          offset: Offset.zero,
+          blurRadius: 12,
+        ),
+      ];
+    }
+    return [
+      Shadow(
+        color: Colors.black.withValues(alpha: 0.72),
+        offset: const Offset(0, 1),
+        blurRadius: 3,
+      ),
+    ];
+  }
+  // Plain light surfaces carry dark text; a black backlight only smudges it.
+  if (brightness == Brightness.light) return null;
+  return [
+    Shadow(
+      color: Colors.black.withValues(alpha: 0.6),
+      offset: const Offset(1, 1),
+      blurRadius: 4,
+    ),
+  ];
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -161,45 +204,6 @@ class _HomeScreenState extends State<HomeScreen> {
         color: iconColor ?? scheme.onSurface,
       ),
     );
-  }
-
-  /// Text shadows for labels on photo/video/scrimmed backdrops (and optional user text backlight).
-  List<Shadow>? _readabilityTextShadows({
-    required bool needsReadabilityScrim,
-    required bool textBacklight,
-    required Brightness brightness,
-  }) {
-    if (!needsReadabilityScrim && !textBacklight) return null;
-    if (needsReadabilityScrim) {
-      if (brightness == Brightness.light) {
-        return [
-          Shadow(
-            color: Colors.black.withValues(alpha: 0.58),
-            offset: const Offset(0, 1),
-            blurRadius: 6,
-          ),
-          Shadow(
-            color: Colors.black.withValues(alpha: 0.22),
-            offset: Offset.zero,
-            blurRadius: 12,
-          ),
-        ];
-      }
-      return [
-        Shadow(
-          color: Colors.black.withValues(alpha: 0.72),
-          offset: const Offset(0, 1),
-          blurRadius: 3,
-        ),
-      ];
-    }
-    return [
-      Shadow(
-        color: Colors.black.withValues(alpha: 0.6),
-        offset: const Offset(1, 1),
-        blurRadius: 4,
-      ),
-    ];
   }
 
   // ── Zen mode ─────────────────────────────────────────────────────────────
@@ -474,7 +478,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   hasCustomBg || (videoChosen && _boardVideoPresenting.value);
               final suppressPlainBackgroundTip = hasCustomBg || videoChosen;
 
-              final readabilityShadows = _readabilityTextShadows(
+              final readabilityShadows = homeReadabilityTextShadows(
                 needsReadabilityScrim: needsReadabilityScrim,
                 textBacklight: textBacklight,
                 brightness: Theme.of(context).brightness,
