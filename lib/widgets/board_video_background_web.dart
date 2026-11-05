@@ -63,6 +63,9 @@ class _BoardVideoBackgroundState extends State<BoardVideoBackground> {
       if (!mounted) return;
       fn();
     });
+    // Media events can arrive while the app is idle; without a frame the
+    // callback (and the session fallback it reports) would never run.
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   void _notifyPresentation(bool visible) {
