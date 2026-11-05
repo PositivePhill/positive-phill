@@ -5,6 +5,7 @@ import 'package:positive_phill/models/affirmation.dart';
 import 'package:positive_phill/services/affirmation_share_export_service.dart';
 import 'package:positive_phill/services/haptics_service.dart';
 import 'package:positive_phill/theme.dart';
+import 'package:positive_phill/widgets/reduce_motion.dart';
 import 'package:share_plus/share_plus.dart' show SharePlus, ShareParams;
 
 Future<void> showAffirmationShareSheet({
@@ -14,6 +15,7 @@ Future<void> showAffirmationShareSheet({
 }) {
   return showModalBottomSheet<void>(
     context: context,
+    sheetAnimationStyle: ReduceMotion.animationStyleOf(context),
     showDragHandle: true,
     builder: (ctx) {
       return SafeArea(
@@ -53,7 +55,7 @@ Future<void> showAffirmationShareSheet({
                     );
                   } catch (_) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      ScaffoldMessenger.of(context).showMotionAwareSnackBar(
                         const SnackBar(
                           content:
                               Text('Share failed. Try copying instead.'),
@@ -76,7 +78,7 @@ Future<void> showAffirmationShareSheet({
                     Navigator.pop(ctx);
                   }
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    ScaffoldMessenger.of(context).showMotionAwareSnackBar(
                       const SnackBar(
                         content: Text('Copied to clipboard'),
                         behavior: SnackBarBehavior.floating,
@@ -101,7 +103,7 @@ Future<void> showAffirmationShareSheet({
                   );
                   if (!context.mounted) return;
                   if (ok) {
-                    messenger.showSnackBar(
+                    messenger.showMotionAwareSnackBar(
                       SnackBar(
                         content: Text(
                           !kIsWeb
@@ -112,7 +114,7 @@ Future<void> showAffirmationShareSheet({
                       ),
                     );
                   } else {
-                    messenger.showSnackBar(
+                    messenger.showMotionAwareSnackBar(
                       const SnackBar(
                         content: Text(
                           'Could not create image — try Share text or Copy',

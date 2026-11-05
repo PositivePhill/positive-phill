@@ -259,7 +259,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Change affirmation pack to match mood's suggested category
     await _onCategoryChanged(mood.suggestedCategory);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showMotionAwareSnackBar(
         SnackBar(
           content: Text(
               'Showing ${mood.suggestedCategory.displayName} affirmations for your mood'),
@@ -375,7 +375,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(context).showMotionAwareSnackBar(
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,

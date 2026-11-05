@@ -4,6 +4,7 @@ import 'package:positive_phill/models/board_video_preset.dart';
 import 'package:positive_phill/services/haptics_service.dart';
 import 'package:positive_phill/services/storage_service.dart';
 import 'package:positive_phill/theme.dart';
+import 'package:positive_phill/widgets/reduce_motion.dart';
 
 typedef PickBackgroundImageCallback = Future<void> Function();
 
@@ -15,6 +16,7 @@ Future<void> showBackgroundStyleSheet(
   final storage = StorageService();
   return showModalBottomSheet<void>(
     context: context,
+    sheetAnimationStyle: ReduceMotion.animationStyleOf(context),
     showDragHandle: true,
     isScrollControlled: true,
     builder: (ctx) {

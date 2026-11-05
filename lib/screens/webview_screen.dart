@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:positive_phill/widgets/reduce_motion.dart';
 
 class WebViewScreen extends StatefulWidget {
   const WebViewScreen({super.key});
@@ -114,7 +115,7 @@ class _WebOpenExternal extends StatelessWidget {
                   if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
                     // 🔥 ADD THIS SAFETY LINE BELOW:
                     if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unable to open link.')));
+                    ScaffoldMessenger.of(context).showMotionAwareSnackBar(const SnackBar(content: Text('Unable to open link.')));
                   }
                 },
                 icon: Icon(Icons.open_in_new, color: colorScheme.onPrimary),
@@ -158,7 +159,7 @@ class _WebErrorFallback extends StatelessWidget {
                   if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
                     // 🔥 ADD THIS SAFETY LINE BELOW:
                     if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Unable to open link.')));
+                    ScaffoldMessenger.of(context).showMotionAwareSnackBar(const SnackBar(content: Text('Unable to open link.')));
                   }
                 },
                 icon: Icon(Icons.open_in_new, color: colorScheme.onPrimary),

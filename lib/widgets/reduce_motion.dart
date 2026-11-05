@@ -32,6 +32,11 @@ class ReduceMotion extends StatefulWidget {
         (MediaQuery.maybeDisableAnimationsOf(context) ?? false);
   }
 
+  /// Style for route-based Material presentations (bottom sheets, dialogs):
+  /// no entrance/exit animation when reduced, framework default otherwise.
+  static AnimationStyle? animationStyleOf(BuildContext context) =>
+      of(context) ? AnimationStyle.noAnimation : null;
+
   /// `MaterialApp.builder`: keeps the tree shape stable whether or not motion
   /// is reduced, so toggling never remounts the navigator.
   static Widget appBuilder(BuildContext context, Widget? child) {
@@ -114,6 +119,41 @@ class _ReduceMotionState extends State<ReduceMotion>
         child: child!,
       ),
       child: widget.child,
+    );
+  }
+}
+
+/// Matches the framework's SnackBar transition (material/snack_bar.dart).
+const Duration _snackBarTransition = Duration(milliseconds: 250);
+const AnimationStyle _snackBarDefaultStyle = AnimationStyle(
+  duration: _snackBarTransition,
+  reverseDuration: _snackBarTransition,
+);
+
+final Expando<bool> _snackBarStyleReduced = Expando<bool>();
+
+extension MotionAwareSnackBars on ScaffoldMessengerState {
+  /// [showSnackBar] whose entrance/exit follows [ReduceMotion]; the visible
+  /// [SnackBar.duration] is unchanged.
+  ///
+  /// The messenger shares one animation controller and keeps it when the style
+  /// is null, so an explicit style is always passed. A changed style recreates
+  /// that controller, so snackbars still bound to the old one are dropped first.
+  ScaffoldFeatureController<SnackBar, SnackBarClosedReason>
+      showMotionAwareSnackBar(SnackBar snackBar) {
+    final scope = context.getInheritedWidgetOfExactType<_ReduceMotionScope>();
+    final reduced = scope?.reduced ??
+        (MediaQuery.maybeDisableAnimationsOf(context) ?? false);
+    final previous = _snackBarStyleReduced[this];
+    if (previous != null && previous != reduced) {
+      clearSnackBars();
+      removeCurrentSnackBar();
+    }
+    _snackBarStyleReduced[this] = reduced;
+    return showSnackBar(
+      snackBar,
+      snackBarAnimationStyle:
+          reduced ? AnimationStyle.noAnimation : _snackBarDefaultStyle,
     );
   }
 }
