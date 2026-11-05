@@ -45,10 +45,65 @@ class StorageService {
   static final ValueNotifier<BoardVideoPreset> boardVideoPreset =
       ValueNotifier<BoardVideoPreset>(BoardVideoPreset.none);
 
+  /// Keys whose presence proves this device has run the app before.
+  /// `theme_mode` and `accent_preset` are owned by ThemeProvider.
+  static const List<String> _installMarkerKeys = [
+    _userProgressKey,
+    _notificationsEnabledKey,
+    _reminderHourKey,
+    _reminderMinuteKey,
+    _customBgPathKey,
+    _customBgWebKey,
+    _customBgAlignXKey,
+    _customBgAlignYKey,
+    _textBacklightEnabledKey,
+    _ttsEnabledKey,
+    _ttsSpeechRateKey,
+    _ttsPitchKey,
+    _ttsAutoReadKey,
+    _ttsVoiceNameKey,
+    _zenModeEnabledKey,
+    _dailyMoodValueKey,
+    _dailyMoodDateKey,
+    _dailyQuestsKey,
+    _backgroundGradientPresetKey,
+    sanctuarySoundscape,
+    sanctuaryVolume,
+    'theme_mode',
+    'accent_preset',
+  ];
+
   /// Call once during cold start ([main]) before [runApp] so Home (and widgets
   /// that subscribe to [boardVideoPreset]) see persisted prefs on the first frame.
+  ///
+  /// Must run before any provider writes prefs: the default-preset migration
+  /// relies on an untouched store to recognise a fresh install.
   static Future<void> hydrateBoardVideoPresetOnLaunch() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await _migrateBoardVideoDefaultIfNeeded(prefs);
+    } catch (e) {
+      debugPrint('Failed to migrate board_video_preset: $e');
+    }
     await StorageService().getBoardVideoPreset();
+  }
+
+  /// One-time: devices without a stored preset get Rain Window when no other
+  /// app preference exists (fresh install), otherwise an explicit `none`.
+  static Future<void> _migrateBoardVideoDefaultIfNeeded(
+    SharedPreferences prefs,
+  ) async {
+    if (prefs.containsKey(_boardVideoPresetKey)) return;
+    final returning = _installMarkerKeys.any(prefs.containsKey);
+    final preset =
+        returning ? BoardVideoPreset.none : BoardVideoPreset.freshInstallDefault;
+    await prefs.setString(_boardVideoPresetKey, preset.storageId);
+    if (kDebugMode) {
+      debugPrint(
+        'board_video_preset migrated: ${preset.storageId} '
+        '(${returning ? 'returning install' : 'fresh install'})',
+      );
+    }
   }
 
   Future<UserProgress> loadUserProgress() async {
@@ -223,7 +278,10 @@ class StorageService {
           raw.trim().isNotEmpty &&
           preset == BoardVideoPreset.none;
       if (invalidStored) {
-        await prefs.remove(_boardVideoPresetKey);
+        await prefs.setString(
+          _boardVideoPresetKey,
+          BoardVideoPreset.none.storageId,
+        );
       }
       final previous = boardVideoPreset.value;
       boardVideoPreset.value = preset;
@@ -243,18 +301,11 @@ class StorageService {
   Future<void> setBoardVideoPreset(BoardVideoPreset preset) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      if (preset == BoardVideoPreset.none) {
-        await prefs.remove(_boardVideoPresetKey);
-      } else {
-        await prefs.setString(_boardVideoPresetKey, preset.storageId);
-      }
+      // `none` is stored explicitly so an absent key always means "never set".
+      await prefs.setString(_boardVideoPresetKey, preset.storageId);
       boardVideoPreset.value = preset;
       if (kDebugMode) {
-        if (preset == BoardVideoPreset.none) {
-          debugPrint('setBoardVideoPreset saved: none (key removed)');
-        } else {
-          debugPrint('setBoardVideoPreset saved: ${preset.storageId}');
-        }
+        debugPrint('setBoardVideoPreset saved: ${preset.storageId}');
       }
     } catch (e) {
       debugPrint('Failed to save board_video_preset: $e');
