@@ -25,6 +25,7 @@ import 'package:positive_phill/services/storage_service.dart';
 import 'package:positive_phill/theme.dart';
 import 'package:positive_phill/widgets/accent_preset_sheet.dart';
 import 'package:positive_phill/widgets/background_style_sheet.dart';
+import 'package:positive_phill/widgets/reduce_motion.dart';
 import 'package:positive_phill/widgets/sanctuary_sounds_sheet.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -109,7 +110,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final b64 = base64Encode(bytes);
         if (b64.length > 4 * 1024 * 1024) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
+            ScaffoldMessenger.of(context).showMotionAwareSnackBar(
               const SnackBar(content: Text('Image too large')),
             );
           }
@@ -122,7 +123,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _customBgPath = null;
             _customBgWeb = b64;
           });
-          ScaffoldMessenger.of(context).showSnackBar(
+          ScaffoldMessenger.of(context).showMotionAwareSnackBar(
             const SnackBar(content: Text('Background updated')),
           );
         }
@@ -141,14 +142,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _customBgPath = newPath;
             _customBgWeb = null;
           });
-          ScaffoldMessenger.of(context).showSnackBar(
+          ScaffoldMessenger.of(context).showMotionAwareSnackBar(
             const SnackBar(content: Text('Background updated')),
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showMotionAwareSnackBar(
           SnackBar(content: Text('Could not set background: $e')),
         );
       }
@@ -161,6 +162,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!mounted) return;
     await showDialog<void>(
       context: context,
+      animationStyle: ReduceMotion.animationStyleOf(context),
       builder: (context) => RepositionDialog(
         bgPath: _customBgPath,
         bgWeb: _customBgWeb,
@@ -181,13 +183,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _customBgPath = null;
           _customBgWeb = null;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showMotionAwareSnackBar(
           const SnackBar(content: Text('Background cleared')),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showMotionAwareSnackBar(
           SnackBar(content: Text('Could not clear background: $e')),
         );
       }
@@ -206,13 +208,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final ok =
           await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
       if (!ok && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showMotionAwareSnackBar(
           const SnackBar(content: Text('Could not open link')),
         );
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showMotionAwareSnackBar(
           const SnackBar(content: Text('Could not open link')),
         );
       }
@@ -234,13 +236,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final ok =
           await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (!ok && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showMotionAwareSnackBar(
           const SnackBar(content: Text('Could not open email client')),
         );
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showMotionAwareSnackBar(
           const SnackBar(content: Text('Could not open email client')),
         );
       }
@@ -269,7 +271,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             .scheduleDailyAffirmation(time: _reminderTime);
         if (mounted) {
           setState(() => _notificationsEnabled = true);
-          ScaffoldMessenger.of(context).showSnackBar(
+          ScaffoldMessenger.of(context).showMotionAwareSnackBar(
             const SnackBar(content: Text('Daily reminders enabled')),
           );
         }
@@ -278,14 +280,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         await _storage.setNotificationsEnabled(false);
         if (mounted) {
           setState(() => _notificationsEnabled = false);
-          ScaffoldMessenger.of(context).showSnackBar(
+          ScaffoldMessenger.of(context).showMotionAwareSnackBar(
             const SnackBar(content: Text('Daily reminders disabled')),
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showMotionAwareSnackBar(
           SnackBar(content: Text('Could not update reminders: $e')),
         );
       }
@@ -311,6 +313,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _showResetDialog(BuildContext context) {
     showDialog(
       context: context,
+      animationStyle: ReduceMotion.animationStyleOf(context),
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: const Text('Reset Progress'),
@@ -331,7 +334,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 await user.resetProgress();
                 await quest.reset();
                 if (!context.mounted) return;
-                messenger.showSnackBar(
+                messenger.showMotionAwareSnackBar(
                   const SnackBar(
                       content: Text('Progress reset successfully')),
                 );
@@ -346,13 +349,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showVoicePickerSheet(BuildContext context, TtsProvider tts) {
     if (tts.availableVoices.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showMotionAwareSnackBar(
         const SnackBar(content: Text('No voices available on this device')),
       );
       return;
     }
     showModalBottomSheet<void>(
       context: context,
+      sheetAnimationStyle: ReduceMotion.animationStyleOf(context),
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -505,6 +509,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 },
                 secondary: Icon(Icons.self_improvement,
                     color: colorScheme.primary, size: 24),
+              ),
+              ValueListenableBuilder<bool>(
+                valueListenable: StorageService.reduceMotion,
+                builder: (context, reduceMotion, _) {
+                  final systemReduces = ReduceMotion.systemRequestOf(context);
+                  return SwitchListTile(
+                    title: const Text('Reduce Motion'),
+                    subtitle: Text(
+                      systemReduces && !reduceMotion
+                          ? 'Already on from your device accessibility '
+                              'settings: posters replace video and animations '
+                              'are minimized'
+                          : 'Show still posters instead of video and minimize '
+                              'animations',
+                    ),
+                    value: reduceMotion,
+                    onChanged: (value) async {
+                      HapticsService.feedback(FeedbackType.selection);
+                      await _storage.setReduceMotion(value);
+                    },
+                    secondary: Icon(Icons.motion_photos_off,
+                        color: colorScheme.primary, size: 24),
+                  );
+                },
               ),
               ListTile(
                 leading: Icon(Icons.gradient, color: colorScheme.primary),

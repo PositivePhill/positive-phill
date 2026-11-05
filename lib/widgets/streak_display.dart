@@ -30,8 +30,16 @@ class StreakDisplay extends StatelessWidget {
             : colorScheme.onSurfaceVariant)
         : colorScheme.onSurfaceVariant;
 
+    // On a plain backdrop the frosted box shows the surface beneath, so dark
+    // text gains nothing from a dark backlight; keep it only for light text
+    // or when a photo/video sits behind the box.
+    final inheritedShadows =
+        stressedBackdrop || colorScheme.onSurface.computeLuminance() > 0.5
+            ? textShadows
+            : null;
+
     final titleShadows = <Shadow>[
-      ...?textShadows,
+      ...?inheritedShadows,
       if (stressedBackdrop && isLight)
         Shadow(
           color: Colors.white.withValues(alpha: 0.72),
@@ -41,7 +49,7 @@ class StreakDisplay extends StatelessWidget {
     ];
 
     final subtitleShadows = <Shadow>[
-      ...?textShadows,
+      ...?inheritedShadows,
       if (stressedBackdrop && isLight)
         Shadow(
           color: Colors.white.withValues(alpha: 0.65),
@@ -79,14 +87,16 @@ class StreakDisplay extends StatelessWidget {
               ]
             : null,
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: AppSpacing.sm,
+        runSpacing: AppSpacing.xs,
         children: [
           const Text(
             '🔥',
             style: TextStyle(fontSize: 32),
           ),
-          const SizedBox(width: AppSpacing.sm),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,

@@ -39,9 +39,167 @@
       height: 100%;
       margin: 0;
     }
+    #pp-splash {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 24px;
+      box-sizing: border-box;
+      background: radial-gradient(circle at 50% 42%, #1d2b2a 0%, #121212 62%);
+      color: #f4f1fa;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      text-align: center;
+      opacity: 1;
+      transition: opacity 320ms ease;
+    }
+    #pp-splash.pp-hide {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #pp-splash .pp-icon {
+      width: 96px;
+      height: 96px;
+      border-radius: 24px;
+      box-shadow: 0 0 0 1px rgba(143, 230, 214, 0.18), 0 0 32px rgba(143, 230, 214, 0.28);
+      animation: pp-breathe 3.2s ease-in-out infinite;
+    }
+    #pp-splash h1 {
+      margin: 8px 0 0;
+      font-size: 24px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+    #pp-splash .pp-tagline {
+      margin: 0;
+      font-size: 15px;
+      color: rgba(244, 241, 250, 0.72);
+    }
+    #pp-slow {
+      margin-top: 28px;
+      max-width: 320px;
+      font-size: 14px;
+      color: rgba(244, 241, 250, 0.85);
+    }
+    #pp-slow[hidden] {
+      display: none;
+    }
+    #pp-slow p {
+      margin: 0 0 12px;
+    }
+    #pp-slow button {
+      font: inherit;
+      font-weight: 600;
+      color: #0f2a26;
+      background: #8fe6d6;
+      border: 0;
+      border-radius: 999px;
+      padding: 10px 22px;
+      cursor: pointer;
+    }
+    #pp-slow button:focus-visible {
+      outline: 2px solid #f4f1fa;
+      outline-offset: 3px;
+    }
+    @keyframes pp-breathe {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 1px rgba(143, 230, 214, 0.18), 0 0 24px rgba(143, 230, 214, 0.2); }
+      50% { transform: scale(1.04); box-shadow: 0 0 0 1px rgba(143, 230, 214, 0.28), 0 0 40px rgba(143, 230, 214, 0.38); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #pp-splash { transition: none; }
+      #pp-splash .pp-icon { animation: none; }
+    }
   </style>
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
+  <div id="pp-splash" role="status" aria-live="polite" aria-busy="true">
+    <img class="pp-icon" src="icons/Icon-192.png" alt="" width="96" height="96">
+    <h1>Positive Phill</h1>
+    <p class="pp-tagline">Your daily habit of positivity</p>
+    <div id="pp-slow" hidden>
+      <p id="pp-slow-text">Taking longer than usual&hellip;</p>
+      <button type="button" id="pp-reload">Reload</button>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var splash = document.getElementById('pp-splash');
+      var slow = document.getElementById('pp-slow');
+      var slowText = document.getElementById('pp-slow-text');
+      var reload = document.getElementById('pp-reload');
+      var done = false;
+      var failed = false;
+      var removeTimer = null;
+
+      function showNotice(message) {
+        if (done || !slow) return;
+        slowText.textContent = message;
+        slow.hidden = false;
+      }
+
+      var slowTimer = setTimeout(function () {
+        if (!failed) showNotice('Taking longer than usual\u2026');
+      }, 20000);
+
+      function showFailure() {
+        failed = true;
+        clearTimeout(slowTimer);
+        showNotice('Positive Phill couldn\u2019t finish loading.');
+      }
+
+      function onResourceError(event) {
+        var t = event && event.target;
+        if (t && t.tagName === 'SCRIPT') showFailure();
+      }
+
+      function onRejection() {
+        showFailure();
+      }
+
+      function removeSplash() {
+        if (removeTimer) clearTimeout(removeTimer);
+        removeTimer = null;
+        if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
+        splash = null;
+      }
+
+      function onFirstFrame() {
+        if (done) return;
+        done = true;
+        clearTimeout(slowTimer);
+        window.removeEventListener('flutter-first-frame', onFirstFrame);
+        window.removeEventListener('error', onResourceError, true);
+        window.removeEventListener('unhandledrejection', onRejection);
+        window.removeEventListener('pp-bootstrap-failed', showFailure);
+        // The event fires from a post-frame callback; give the engine two
+        // animation frames to put pixels on screen before fading out.
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            if (!splash) return;
+            splash.setAttribute('aria-busy', 'false');
+            splash.setAttribute('aria-hidden', 'true');
+            splash.addEventListener('transitionend', removeSplash, { once: true });
+            splash.classList.add('pp-hide');
+            removeTimer = setTimeout(removeSplash, 700);
+          });
+        });
+      }
+
+      reload.addEventListener('click', function () {
+        window.location.reload();
+      });
+      window.addEventListener('flutter-first-frame', onFirstFrame);
+      window.addEventListener('error', onResourceError, true);
+      window.addEventListener('unhandledrejection', onRejection);
+      window.addEventListener('pp-bootstrap-failed', showFailure);
+    })();
+  </script>
+  <script>
+{{flutter_bootstrap_js}}
+  </script>
 </body>
 </html>

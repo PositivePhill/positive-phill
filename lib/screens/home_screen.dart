@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderAbstractViewport;
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:positive_phill/models/affirmation.dart';
@@ -30,6 +31,51 @@ import 'package:positive_phill/widgets/sos_entry_card.dart';
 import 'package:positive_phill/widgets/streak_heatmap.dart';
 import 'package:positive_phill/widgets/xp_progress_bar.dart';
 import 'package:positive_phill/widgets/board_video_background.dart';
+import 'package:positive_phill/widgets/board_video_poster.dart';
+import 'package:positive_phill/widgets/reduce_motion.dart';
+
+/// Text shadows for Home labels on photo/video/scrimmed backdrops (and the
+/// optional user text backlight).
+@visibleForTesting
+List<Shadow>? homeReadabilityTextShadows({
+  required bool needsReadabilityScrim,
+  required bool textBacklight,
+  required Brightness brightness,
+}) {
+  if (!needsReadabilityScrim && !textBacklight) return null;
+  if (needsReadabilityScrim) {
+    if (brightness == Brightness.light) {
+      return [
+        Shadow(
+          color: Colors.black.withValues(alpha: 0.58),
+          offset: const Offset(0, 1),
+          blurRadius: 6,
+        ),
+        Shadow(
+          color: Colors.black.withValues(alpha: 0.22),
+          offset: Offset.zero,
+          blurRadius: 12,
+        ),
+      ];
+    }
+    return [
+      Shadow(
+        color: Colors.black.withValues(alpha: 0.72),
+        offset: const Offset(0, 1),
+        blurRadius: 3,
+      ),
+    ];
+  }
+  // Plain light surfaces carry dark text; a black backlight only smudges it.
+  if (brightness == Brightness.light) return null;
+  return [
+    Shadow(
+      color: Colors.black.withValues(alpha: 0.6),
+      offset: const Offset(1, 1),
+      blurRadius: 4,
+    ),
+  ];
+}
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -50,8 +96,13 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _zenMode = false;
   bool _readyForAutoRead = false;
 
-  /// Drives readability scrim while a board video layer is actually presenting.
-  final ValueNotifier<bool> _boardVideoPresenting = ValueNotifier<bool>(false);
+  /// Video is mounted only after Home has rendered once (poster shows first).
+  final ValueNotifier<bool> _videoMountAllowed = ValueNotifier<bool>(false);
+  bool _videoMountScheduled = false;
+
+  /// Presets whose playback failed this session. Never persisted: the saved
+  /// preference stays and the poster remains visible.
+  final Set<BoardVideoPreset> _videoUnavailableThisSession = {};
 
   // Debounce timer for auto-read on PageView swipes. Coalesces fast swipes
   // and gives TtsProvider time to settle between page changes.
@@ -108,7 +159,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _autoReadDebounce?.cancel();
     _pageController.dispose();
     _adsService.dispose();
-    _boardVideoPresenting.dispose();
+    _videoMountAllowed.dispose();
     super.dispose();
   }
 
@@ -162,45 +213,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Text shadows for labels on photo/video/scrimmed backdrops (and optional user text backlight).
-  List<Shadow>? _readabilityTextShadows({
-    required bool needsReadabilityScrim,
-    required bool textBacklight,
-    required Brightness brightness,
-  }) {
-    if (!needsReadabilityScrim && !textBacklight) return null;
-    if (needsReadabilityScrim) {
-      if (brightness == Brightness.light) {
-        return [
-          Shadow(
-            color: Colors.black.withValues(alpha: 0.58),
-            offset: const Offset(0, 1),
-            blurRadius: 6,
-          ),
-          Shadow(
-            color: Colors.black.withValues(alpha: 0.22),
-            offset: Offset.zero,
-            blurRadius: 12,
-          ),
-        ];
-      }
-      return [
-        Shadow(
-          color: Colors.black.withValues(alpha: 0.72),
-          offset: const Offset(0, 1),
-          blurRadius: 3,
-        ),
-      ];
-    }
-    return [
-      Shadow(
-        color: Colors.black.withValues(alpha: 0.6),
-        offset: const Offset(1, 1),
-        blurRadius: 4,
-      ),
-    ];
-  }
-
   // ── Zen mode ─────────────────────────────────────────────────────────────
 
   Future<void> _loadZenMode() async {
@@ -247,7 +259,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Change affirmation pack to match mood's suggested category
     await _onCategoryChanged(mood.suggestedCategory);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showMotionAwareSnackBar(
         SnackBar(
           content: Text(
               'Showing ${mood.suggestedCategory.displayName} affirmations for your mood'),
@@ -347,18 +359,23 @@ class _HomeScreenState extends State<HomeScreen> {
     final extraPack =
         await _affirmationsService.getExtraPack(category: _selectedCategory);
     if (!mounted) return;
+    final reduceMotion = ReduceMotion.of(context);
     setState(() {
       _currentPack.addAll(extraPack);
-      _pageController.animateToPage(
-        _currentPack.length - 5,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+      if (reduceMotion) {
+        _pageController.jumpToPage(_currentPack.length - 5);
+      } else {
+        _pageController.animateToPage(
+          _currentPack.length - 5,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
     });
   }
 
   void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(context).showMotionAwareSnackBar(
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
@@ -367,13 +384,31 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _onBoardVideoPresentationChanged(bool visible) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+  /// After Home's first frame, waits (bounded) for the poster to decode so the
+  /// poster's request is not starved by the much larger video download.
+  void _scheduleVideoMount(BoardVideoPreset preset) {
+    if (_videoMountScheduled) return;
+    _videoMountScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      if (_boardVideoPresenting.value != visible) {
-        _boardVideoPresenting.value = visible;
+      final poster = preset.posterAssetPath();
+      if (poster != null) {
+        try {
+          await precacheImage(AssetImage(poster), context)
+              .timeout(const Duration(seconds: 2));
+        } catch (_) {}
       }
+      if (!mounted) return;
+      _videoMountAllowed.value = true;
     });
+  }
+
+  void _onBoardVideoUnavailable(BoardVideoPreset preset) {
+    if (!mounted || _videoUnavailableThisSession.contains(preset)) return;
+    if (kDebugMode) {
+      debugPrint('Home: ${preset.name} unavailable this session — poster kept');
+    }
+    setState(() => _videoUnavailableThisSession.add(preset));
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -386,8 +421,20 @@ class _HomeScreenState extends State<HomeScreen> {
     final completedDates = userProvider.progress.completedDates;
 
     if (userProvider.isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      final preset = StorageService.boardVideoPreset.value;
+      if (preset == BoardVideoPreset.none) {
+        return const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        );
+      }
+      return Scaffold(
+        body: Stack(
+          children: [
+            Positioned.fill(child: BoardVideoPoster(preset: preset)),
+            const Positioned.fill(child: _HomeReadabilityScrim()),
+            const Center(child: CircularProgressIndicator()),
+          ],
+        ),
       );
     }
 
@@ -401,14 +448,8 @@ class _HomeScreenState extends State<HomeScreen> {
             );
           }
 
-          if (videoPreset == BoardVideoPreset.none &&
-              _boardVideoPresenting.value) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              if (_boardVideoPresenting.value) {
-                _boardVideoPresenting.value = false;
-              }
-            });
+          if (videoPreset != BoardVideoPreset.none) {
+            _scheduleVideoMount(videoPreset);
           }
 
           return AnimatedBuilder(
@@ -418,7 +459,6 @@ class _HomeScreenState extends State<HomeScreen> {
               StorageService.customBackgroundAlignment,
               StorageService.textBacklightEnabled,
               StorageService.backgroundGradientPreset,
-              _boardVideoPresenting,
             ]),
             builder: (context, _) {
               final bgPath = StorageService.customBackgroundPath.value;
@@ -427,6 +467,8 @@ class _HomeScreenState extends State<HomeScreen> {
               final textBacklight = StorageService.textBacklightEnabled.value;
               final bgPreset = StorageService.backgroundGradientPreset.value;
               final videoChosen = videoPreset != BoardVideoPreset.none;
+              // Poster only: never mount (or start downloading) the video.
+              final reduceMotion = ReduceMotion.of(context);
 
               Widget bgWidget =
                   ColoredBox(color: Theme.of(context).scaffoldBackgroundColor);
@@ -457,7 +499,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 }
               }
 
-              if (!hasCustomBg) {
+              if (!hasCustomBg && videoChosen) {
+                bgWidget = BoardVideoPoster(preset: videoPreset);
+              } else if (!hasCustomBg) {
                 final g =
                     bgPreset.linearGradientFor(Theme.of(context).brightness);
                 if (g != null) {
@@ -469,11 +513,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 }
               }
 
-              final needsReadabilityScrim =
-                  hasCustomBg || (videoChosen && _boardVideoPresenting.value);
+              // Poster or photo is visible from the first frame, so the scrim
+              // (and text colors) stay fixed while the video fades in.
+              final needsReadabilityScrim = hasCustomBg || videoChosen;
               final suppressPlainBackgroundTip = hasCustomBg || videoChosen;
 
-              final readabilityShadows = _readabilityTextShadows(
+              final readabilityShadows = homeReadabilityTextShadows(
                 needsReadabilityScrim: needsReadabilityScrim,
                 textBacklight: textBacklight,
                 brightness: Theme.of(context).brightness,
@@ -486,35 +531,25 @@ class _HomeScreenState extends State<HomeScreen> {
               return Stack(
                 children: [
                   Positioned.fill(child: bgWidget),
-                  if (videoChosen)
+                  if (videoChosen &&
+                      !reduceMotion &&
+                      !_videoUnavailableThisSession.contains(videoPreset))
                     Positioned.fill(
-                      child: BoardVideoBackground(
-                        key: ValueKey('board-video-${videoPreset.name}'),
-                        preset: videoPreset,
-                        onFatalError: () {
-                          unawaited(
-                            StorageService()
-                                .setBoardVideoPreset(BoardVideoPreset.none),
+                      child: ValueListenableBuilder<bool>(
+                        valueListenable: _videoMountAllowed,
+                        builder: (context, allowed, _) {
+                          if (!allowed) return const SizedBox.expand();
+                          return BoardVideoBackground(
+                            key: ValueKey('board-video-${videoPreset.name}'),
+                            preset: videoPreset,
+                            onPlaybackUnavailable: () =>
+                                _onBoardVideoUnavailable(videoPreset),
                           );
                         },
-                        onPresentationChanged: _onBoardVideoPresentationChanged,
                       ),
                     ),
                   if (needsReadabilityScrim)
-                    Positioned.fill(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.black.withValues(alpha: 0.5),
-                              Colors.black.withValues(alpha: 0.72),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+                    const Positioned.fill(child: _HomeReadabilityScrim()),
                   SafeArea(
                     child: LayoutBuilder(
                       builder: (context, constraints) {
@@ -556,10 +591,25 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   style: textTheme
                                                       .headlineMedium
                                                       ?.copyWith(
-                                                    color: colorScheme.primary,
+                                                    color: needsReadabilityScrim
+                                                        ? Colors.white
+                                                            .withValues(
+                                                                alpha: 0.98)
+                                                        : colorScheme.primary,
                                                     fontWeight: FontWeight.bold,
-                                                    shadows:
-                                                        readabilityShadows,
+                                                    shadows: needsReadabilityScrim
+                                                        ? [
+                                                            Shadow(
+                                                              color: colorScheme
+                                                                  .primary
+                                                                  .withValues(
+                                                                      alpha:
+                                                                          0.55),
+                                                              blurRadius: 12,
+                                                            ),
+                                                            ...?readabilityShadows,
+                                                          ]
+                                                        : readabilityShadows,
                                                   ),
                                                 ),
                                               ),
@@ -650,8 +700,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                 FontWeight.w600,
                                                             color: colorScheme
                                                                 .onSurface,
-                                                            shadows:
-                                                                readabilityShadows,
                                                           ),
                                                         ),
                                                         const SizedBox(
@@ -739,8 +787,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                             const SizedBox(
                                                 height: AppSpacing.sm),
                                             AnimatedSwitcher(
-                                              duration: const Duration(
-                                                  milliseconds: 300),
+                                              duration: ReduceMotion.of(context)
+                                                  ? Duration.zero
+                                                  : const Duration(
+                                                      milliseconds: 300),
                                               child: Text(
                                                 key: ValueKey(_dailyTheme),
                                                 _dailyTheme,
@@ -750,7 +800,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   color: colorScheme
                                                       .onSecondaryContainer,
                                                   fontStyle: FontStyle.italic,
-                                                  shadows: readabilityShadows,
                                                 ),
                                               ),
                                             ),
@@ -999,10 +1048,13 @@ class AppScrollBehavior extends MaterialScrollBehavior {
 
 // ── CategorySelector ──────────────────────────────────────────────────────────
 
-class CategorySelector extends StatelessWidget {
+class CategorySelector extends StatefulWidget {
   final AffirmationCategory? selectedCategory;
   final Future<void> Function(AffirmationCategory?) onCategoryChanged;
   final bool elevatedChipSurface;
+
+  /// At or above this width all chips are shown in a wrapping grid.
+  static const double wrapBreakpoint = 600;
 
   const CategorySelector({
     super.key,
@@ -1012,67 +1064,213 @@ class CategorySelector extends StatelessWidget {
   });
 
   @override
+  State<CategorySelector> createState() => _CategorySelectorState();
+}
+
+class _CategorySelectorState extends State<CategorySelector> {
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _selectedChipKey = GlobalKey();
+  bool _hasMoreToRight = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_updateScrollHint);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updateScrollHint();
+      _revealSelectedChip(animate: false);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant CategorySelector oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedCategory != widget.selectedCategory) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _revealSelectedChip());
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_updateScrollHint);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _updateScrollHint() {
+    if (!mounted || !_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    final hasMore = position.maxScrollExtent > 0 &&
+        position.pixels < position.maxScrollExtent - 1;
+    if (hasMore != _hasMoreToRight) {
+      setState(() => _hasMoreToRight = hasMore);
+    }
+  }
+
+  /// Centers the selected chip when it is clipped. Drives only the horizontal
+  /// row's controller so the enclosing Home page never scrolls.
+  void _revealSelectedChip({bool animate = true}) {
+    if (!mounted || !_scrollController.hasClients) return;
+    final chip = _selectedChipKey.currentContext?.findRenderObject();
+    if (chip == null || !chip.attached) return;
+    final viewport = RenderAbstractViewport.maybeOf(chip);
+    if (viewport == null) return;
+
+    final position = _scrollController.position;
+    final leadingOffset = viewport.getOffsetToReveal(chip, 0).offset;
+    final trailingOffset = viewport.getOffsetToReveal(chip, 1).offset;
+    final fullyVisible = position.pixels >= trailingOffset - 0.5 &&
+        position.pixels <= leadingOffset + 0.5;
+    if (fullyVisible) return;
+
+    final target = viewport
+        .getOffsetToReveal(chip, 0.5)
+        .offset
+        .clamp(position.minScrollExtent, position.maxScrollExtent);
+    if (animate && !ReduceMotion.of(context)) {
+      unawaited(position.animateTo(
+        target,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+      ));
+    } else {
+      position.jumpTo(target);
+    }
+  }
+
+  Widget _chip({
+    required ColorScheme colorScheme,
+    required AffirmationCategory? category,
+    required String label,
+  }) {
+    final isSelected = widget.selectedCategory == category;
+    return FilterChip(
+      key: isSelected ? _selectedChipKey : null,
+      label: Text(
+        label,
+        style: TextStyle(
+          color: isSelected
+              ? colorScheme.onSecondaryContainer
+              : colorScheme.onSurface,
+          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+        ),
+        softWrap: false,
+        overflow: TextOverflow.visible,
+      ),
+      labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      selected: isSelected,
+      onSelected: (_) => widget.onCategoryChanged(category),
+      backgroundColor: widget.elevatedChipSurface
+          ? colorScheme.surfaceContainerHigh
+          : colorScheme.surface,
+      selectedColor: colorScheme.secondaryContainer,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.sm),
-            child: FilterChip(
-              label: Text(
-                'All',
-                style: TextStyle(
-                  color: selectedCategory == null
-                      ? colorScheme.onSecondaryContainer
-                      : colorScheme.onSurface,
-                  fontWeight: selectedCategory == null
-                      ? FontWeight.w600
-                      : FontWeight.w500,
-                ),
-                softWrap: false,
-                overflow: TextOverflow.visible,
-              ),
-              labelPadding: const EdgeInsets.symmetric(horizontal: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              selected: selectedCategory == null,
-              onSelected: (_) => onCategoryChanged(null),
-              backgroundColor: elevatedChipSurface
-                  ? colorScheme.surfaceContainerHigh
-                  : colorScheme.surface,
-              selectedColor: colorScheme.secondaryContainer,
-            ),
-          ),
-          ...AffirmationCategory.values.map((category) {
-            final isSelected = selectedCategory == category;
-            return Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.sm),
-              child: FilterChip(
-                label: Text(
-                  '${category.emoji} ${category.displayName}',
-                  style: TextStyle(
-                    color: isSelected
-                        ? colorScheme.onSecondaryContainer
-                        : colorScheme.onSurface,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+    final chips = <Widget>[
+      _chip(colorScheme: colorScheme, category: null, label: 'All'),
+      for (final category in AffirmationCategory.values)
+        _chip(
+          colorScheme: colorScheme,
+          category: category,
+          label: '${category.emoji} ${category.displayName}',
+        ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= CategorySelector.wrapBreakpoint) {
+          return Wrap(
+            alignment: WrapAlignment.center,
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: chips,
+          );
+        }
+
+        return Stack(
+          children: [
+            NotificationListener<ScrollMetricsNotification>(
+              onNotification: (_) {
+                WidgetsBinding.instance
+                    .addPostFrameCallback((_) => _updateScrollHint());
+                return false;
+              },
+              child: ShaderMask(
+                blendMode: BlendMode.dstIn,
+                shaderCallback: (rect) => LinearGradient(
+                  colors: [
+                    Colors.white,
+                    Colors.white,
+                    _hasMoreToRight ? Colors.transparent : Colors.white,
+                  ],
+                  stops: const [0, 0.86, 1],
+                ).createShader(rect),
+                child: ScrollConfiguration(
+                  behavior: const AppScrollBehavior(),
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        for (final chip in chips)
+                          Padding(
+                            padding:
+                                const EdgeInsets.only(right: AppSpacing.sm),
+                            child: chip,
+                          ),
+                      ],
+                    ),
                   ),
-                  softWrap: false,
-                  overflow: TextOverflow.visible,
                 ),
-                labelPadding: const EdgeInsets.symmetric(horizontal: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                selected: isSelected,
-                onSelected: (_) => onCategoryChanged(category),
-                backgroundColor: elevatedChipSurface
-                    ? colorScheme.surfaceContainerHigh
-                    : colorScheme.surface,
-                selectedColor: colorScheme.secondaryContainer,
               ),
-            );
-          }),
-        ],
+            ),
+            if (_hasMoreToRight)
+              Positioned(
+                top: 0,
+                bottom: 0,
+                right: 0,
+                child: IgnorePointer(
+                  child: ExcludeSemantics(
+                    child: Center(
+                      child: Icon(
+                        Icons.chevron_right,
+                        key: const ValueKey('category-scroll-hint'),
+                        size: 20,
+                        color: colorScheme.onSurface.withValues(alpha: 0.75),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Darkening gradient over photo/poster/video backdrops for text contrast.
+class _HomeReadabilityScrim extends StatelessWidget {
+  const _HomeReadabilityScrim();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.black.withValues(alpha: 0.5),
+            Colors.black.withValues(alpha: 0.72),
+          ],
+        ),
       ),
     );
   }

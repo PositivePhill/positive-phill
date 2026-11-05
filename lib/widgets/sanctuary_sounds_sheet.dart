@@ -4,10 +4,12 @@ import 'package:positive_phill/models/sanctuary_soundscape.dart';
 import 'package:positive_phill/providers/sanctuary_audio_provider.dart';
 import 'package:positive_phill/services/haptics_service.dart';
 import 'package:positive_phill/theme.dart';
+import 'package:positive_phill/widgets/reduce_motion.dart';
 
 Future<void> showSanctuarySoundsSheet(BuildContext context) {
   return showModalBottomSheet<void>(
     context: context,
+    sheetAnimationStyle: ReduceMotion.animationStyleOf(context),
     useSafeArea: true,
     isScrollControlled: true,
     showDragHandle: true,

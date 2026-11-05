@@ -3,11 +3,14 @@ import 'package:positive_phill/services/fortune_service.dart';
 import 'package:positive_phill/theme.dart';
 
 class DailyFortuneCard extends StatelessWidget {
-  const DailyFortuneCard({super.key});
+  const DailyFortuneCard({super.key, @visibleForTesting this.fortune});
+
+  /// Defaults to [FortuneService.getToday].
+  final DailyFortune? fortune;
 
   @override
   Widget build(BuildContext context) {
-    final fortune = FortuneService.getToday();
+    final fortune = this.fortune ?? FortuneService.getToday();
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -62,14 +65,16 @@ class DailyFortuneCard extends StatelessWidget {
             children: [
               const Text('✨', style: TextStyle(fontSize: 16)),
               const SizedBox(width: 6),
-              Text(
-                "TODAY'S ENERGY",
-                style: textTheme.labelSmall?.copyWith(
-                  color: onCard.withValues(alpha: 0.75),
-                  letterSpacing: 1.4,
-                  fontWeight: FontWeight.w600,
+              Flexible(
+                child: Text(
+                  "TODAY'S ENERGY",
+                  style: textTheme.labelSmall?.copyWith(
+                    color: onCard.withValues(alpha: 0.75),
+                    letterSpacing: 1.4,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
               ),
             ],
           ),
@@ -85,10 +90,9 @@ class DailyFortuneCard extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.xs),
-          // Lucky focus — centered single line
-          RichText(
-            textAlign: TextAlign.center,
-            text: TextSpan(
+          // Lucky focus — centered
+          Text.rich(
+            TextSpan(
               style: textTheme.bodyMedium?.copyWith(
                 color: onCard.withValues(alpha: 0.85),
               ),
@@ -103,6 +107,7 @@ class DailyFortuneCard extends StatelessWidget {
                 ),
               ],
             ),
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.md),
           // Italic message

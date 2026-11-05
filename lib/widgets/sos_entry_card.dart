@@ -17,6 +17,11 @@ class SosEntryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    // The card surface is opaque; dark shadows only help light text.
+    final headingShadows =
+        colorScheme.onPrimaryContainer.computeLuminance() > 0.5
+            ? textShadows
+            : null;
 
     return Material(
       color: colorScheme.primaryContainer.withValues(alpha: 0.95),
@@ -49,7 +54,7 @@ class SosEntryCard extends StatelessWidget {
                       style: textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: colorScheme.onPrimaryContainer,
-                        shadows: textShadows,
+                        shadows: headingShadows,
                       ),
                     ),
                     const SizedBox(height: 2),

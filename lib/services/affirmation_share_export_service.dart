@@ -94,7 +94,7 @@ class AffirmationShareExportService {
 
     try {
       if (kIsWeb) {
-        return downloadPngBytes(bytes, 'positive_phill_affirmation.png');
+        return await downloadPngBytes(bytes, 'positive_phill_affirmation.png');
       }
       final path = await share_temp.writeSharePngBytes(bytes);
       if (path == null) return false;

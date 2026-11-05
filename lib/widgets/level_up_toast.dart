@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:positive_phill/theme.dart';
+import 'package:positive_phill/widgets/reduce_motion.dart';
 
 /// Shows a brief animated overlay toast when the user levels up.
 /// Call [LevelUpToast.show] from anywhere with a mounted BuildContext.
@@ -38,9 +39,12 @@ class _LevelUpToastWidgetState extends State<_LevelUpToastWidget>
   @override
   void initState() {
     super.initState();
+    // preserve: the controller also times how long the toast stays readable,
+    // so platform "remove animations" must not shorten it.
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2500),
+      animationBehavior: AnimationBehavior.preserve,
     );
     _opacity = TweenSequence<double>([
       TweenSequenceItem(
@@ -79,6 +83,7 @@ class _LevelUpToastWidgetState extends State<_LevelUpToastWidget>
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final reduceMotion = ReduceMotion.of(context);
 
     return Positioned(
       top: MediaQuery.of(context).padding.top + 72,
@@ -88,9 +93,9 @@ class _LevelUpToastWidgetState extends State<_LevelUpToastWidget>
         child: AnimatedBuilder(
           animation: _controller,
           builder: (_, __) => Opacity(
-            opacity: _opacity.value,
+            opacity: reduceMotion ? 1 : _opacity.value,
             child: Transform.scale(
-              scale: _scale.value,
+              scale: reduceMotion ? 1 : _scale.value,
               child: Center(
                 child: Container(
                   padding: const EdgeInsets.symmetric(

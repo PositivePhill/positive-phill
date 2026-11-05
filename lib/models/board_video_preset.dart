@@ -1,3 +1,5 @@
+import 'dart:ui' show Color;
+
 /// Bundled Inspirational Board loop videos (muted, looping on Home).
 enum BoardVideoPreset {
   none,
@@ -7,7 +9,10 @@ enum BoardVideoPreset {
   campfireGlow,
   cosmicDrift;
 
-  /// Stable id for persistence (snake_case; `none` is stored by clearing the key).
+  /// Preset written once for a proven fresh install (no saved preferences).
+  static const BoardVideoPreset freshInstallDefault = BoardVideoPreset.rainWindow;
+
+  /// Stable id for persistence (snake_case; `none` is stored explicitly).
   String get storageId => switch (this) {
         BoardVideoPreset.none => 'none',
         BoardVideoPreset.rainWindow => 'rain_window',
@@ -39,6 +44,29 @@ enum BoardVideoPreset {
           'assets/videos/campfire_glow_loop.mp4',
         BoardVideoPreset.cosmicDrift =>
           'assets/videos/cosmic_drift_loop.mp4',
+      };
+
+  /// Still frame shown beneath the video until playback is visible.
+  String? posterAssetPath() => switch (this) {
+        BoardVideoPreset.none => null,
+        BoardVideoPreset.rainWindow => 'assets/images/posters/rain_window.jpg',
+        BoardVideoPreset.oceanCalm => 'assets/images/posters/ocean_calm.jpg',
+        BoardVideoPreset.forestLight =>
+          'assets/images/posters/forest_light.jpg',
+        BoardVideoPreset.campfireGlow =>
+          'assets/images/posters/campfire_glow.jpg',
+        BoardVideoPreset.cosmicDrift =>
+          'assets/images/posters/cosmic_drift.jpg',
+      };
+
+  /// Average poster color, painted while the poster image decodes.
+  Color get posterPlaceholderColor => switch (this) {
+        BoardVideoPreset.none => const Color(0xFF121212),
+        BoardVideoPreset.rainWindow => const Color(0xFF6D6B6F),
+        BoardVideoPreset.oceanCalm => const Color(0xFF686E71),
+        BoardVideoPreset.forestLight => const Color(0xFF666945),
+        BoardVideoPreset.campfireGlow => const Color(0xFF22100B),
+        BoardVideoPreset.cosmicDrift => const Color(0xFF56005E),
       };
 
   /// Normalizes persisted ids so live values like `forestlight` match [forestLight].

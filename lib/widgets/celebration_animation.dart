@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:confetti/confetti.dart';
+import 'package:positive_phill/widgets/reduce_motion.dart';
 
 class CelebrationAnimation extends StatefulWidget {
   final Widget child;
@@ -17,6 +18,7 @@ class CelebrationAnimation extends StatefulWidget {
 
 class _CelebrationAnimationState extends State<CelebrationAnimation> {
   late ConfettiController _confettiController;
+  bool _reduceMotion = false;
 
   @override
   void initState() {
@@ -25,9 +27,16 @@ class _CelebrationAnimationState extends State<CelebrationAnimation> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reduceMotion = ReduceMotion.of(context);
+    if (_reduceMotion) _confettiController.stop();
+  }
+
+  @override
   void didUpdateWidget(CelebrationAnimation oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.trigger && !oldWidget.trigger) {
+    if (widget.trigger && !oldWidget.trigger && !_reduceMotion) {
       _confettiController.play();
     }
   }

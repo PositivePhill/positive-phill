@@ -8,6 +8,7 @@ import 'package:positive_phill/quest_helper.dart';
 import 'package:positive_phill/services/haptics_service.dart';
 import 'package:positive_phill/theme.dart';
 import 'package:positive_phill/widgets/affirmation_share_sheet.dart';
+import 'package:positive_phill/widgets/reduce_motion.dart';
 
 class AffirmationCard extends StatefulWidget {
   final Affirmation affirmation;
@@ -32,6 +33,7 @@ class _AffirmationCardState extends State<AffirmationCard>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
+  final ScrollController _textScrollController = ScrollController();
 
   @override
   void initState() {
@@ -47,15 +49,50 @@ class _AffirmationCardState extends State<AffirmationCard>
 
   @override
   void dispose() {
+    _textScrollController.dispose();
     _controller.dispose();
     super.dispose();
+  }
+
+  static const double _maxTextWidth = 600;
+
+  /// Smallest unscaled font size used when shrinking to fit; the user's
+  /// text scale still applies on top of it.
+  static const double _minFontSize = 16;
+
+  TextStyle _fittedTextStyle(
+    BuildContext context,
+    TextStyle base, {
+    required double maxWidth,
+    required double maxHeight,
+  }) {
+    final maxFontSize = base.fontSize ?? 24;
+    if (!maxHeight.isFinite || maxFontSize <= _minFontSize) return base;
+
+    final textScaler = MediaQuery.textScalerOf(context);
+    final textDirection = Directionality.of(context);
+    for (var size = maxFontSize; size > _minFontSize; size -= 1) {
+      final candidate = base.copyWith(fontSize: size);
+      final painter = TextPainter(
+        text: TextSpan(text: widget.affirmation.text, style: candidate),
+        textAlign: TextAlign.center,
+        textDirection: textDirection,
+        textScaler: textScaler,
+      )..layout(maxWidth: maxWidth);
+      final fits = painter.height <= maxHeight;
+      painter.dispose();
+      if (fits) return candidate;
+    }
+    return base.copyWith(fontSize: _minFontSize);
   }
 
   Future<void> _onFavorite() async {
     final userProvider = context.read<UserProvider>();
     final isFavorite = userProvider.isFavorite(widget.affirmation.id);
     if (!isFavorite) {
-      _controller.forward().then((_) => _controller.reverse());
+      if (!ReduceMotion.of(context)) {
+        _controller.forward().then((_) => _controller.reverse());
+      }
       HapticsService.feedback(FeedbackType.light);
     }
     await userProvider.toggleFavorite(widget.affirmation.id);
@@ -99,15 +136,19 @@ class _AffirmationCardState extends State<AffirmationCard>
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    final List<Shadow>? textShadows = widget.textBacklightEnabled
-        ? [
-            Shadow(
-              color: Colors.black.withValues(alpha: 0.6),
-              offset: const Offset(1, 1),
-              blurRadius: 4,
-            ),
-          ]
-        : null;
+    final textColor = colorScheme.onPrimaryContainer;
+    // The card is opaque: a dark backlight only helps light text; on dark
+    // text it renders as a smudge.
+    final List<Shadow>? textShadows =
+        widget.textBacklightEnabled && textColor.computeLuminance() > 0.5
+            ? [
+                Shadow(
+                  color: Colors.black.withValues(alpha: 0.45),
+                  offset: const Offset(0, 1),
+                  blurRadius: 3,
+                ),
+              ]
+            : null;
 
     return Container(
       margin: const EdgeInsets.symmetric(
@@ -142,26 +183,52 @@ class _AffirmationCardState extends State<AffirmationCard>
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Responsive text region — shrinks to fit within available height.
+            // Wraps at the card's real width and steps the font size down
+            // (never below the floor) to fit the height; scrolls as a last
+            // resort so text is never clipped or truncated.
             Flexible(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.center,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 600),
-                  child: Text(
-                    widget.affirmation.text,
-                    style: textTheme.headlineSmall?.copyWith(
-                      color: colorScheme.onPrimaryContainer,
-                      height: 1.45,
-                      shadows: textShadows,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final width = constraints.maxWidth < _maxTextWidth
+                      ? constraints.maxWidth
+                      : _maxTextWidth;
+                  final style = _fittedTextStyle(
+                    context,
+                    textTheme.headlineSmall?.copyWith(
+                          color: textColor,
+                          height: 1.45,
+                          shadows: textShadows,
+                        ) ??
+                        TextStyle(
+                          color: textColor,
+                          height: 1.45,
+                          shadows: textShadows,
+                        ),
+                    maxWidth: width,
+                    maxHeight: constraints.maxHeight,
+                  );
+                  return Center(
+                    child: SizedBox(
+                      width: width,
+                      // The thumb paints only when the text actually
+                      // overflows, signalling that more text is below.
+                      child: Scrollbar(
+                        controller: _textScrollController,
+                        thumbVisibility: true,
+                        child: SingleChildScrollView(
+                          controller: _textScrollController,
+                          child: Text(
+                            widget.affirmation.text,
+                            key: const ValueKey('affirmation-card-text'),
+                            style: style,
+                            textAlign: TextAlign.center,
+                            softWrap: true,
+                          ),
+                        ),
+                      ),
                     ),
-                    textAlign: TextAlign.center,
-                    maxLines: 6,
-                    overflow: TextOverflow.ellipsis,
-                    softWrap: true,
-                  ),
-                ),
+                  );
+                },
               ),
             ),
             if (widget.showActions) ...[
@@ -181,7 +248,9 @@ class _AffirmationCardState extends State<AffirmationCard>
                       tooltip: 'Favorite',
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.md),
+                  // Gaps shrink on narrow cards (320px) so the 48px tap
+                  // targets never overflow.
+                  const Flexible(child: SizedBox(width: AppSpacing.md)),
                   IconButton(
                     onPressed: _onShare,
                     icon: Icon(
@@ -191,7 +260,7 @@ class _AffirmationCardState extends State<AffirmationCard>
                     ),
                     tooltip: 'Share',
                   ),
-                  const SizedBox(width: AppSpacing.md),
+                  const Flexible(child: SizedBox(width: AppSpacing.md)),
                   IconButton(
                     onPressed: _onSpeak,
                     icon: Icon(

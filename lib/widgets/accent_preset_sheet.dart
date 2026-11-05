@@ -4,10 +4,12 @@ import 'package:positive_phill/models/accent_preset.dart';
 import 'package:positive_phill/providers/theme_provider.dart';
 import 'package:positive_phill/services/haptics_service.dart';
 import 'package:positive_phill/theme.dart';
+import 'package:positive_phill/widgets/reduce_motion.dart';
 
 Future<void> showAccentPresetSheet(BuildContext context) {
   return showModalBottomSheet<void>(
     context: context,
+    sheetAnimationStyle: ReduceMotion.animationStyleOf(context),
     showDragHandle: true,
     builder: (ctx) {
       final colorScheme = Theme.of(ctx).colorScheme;
