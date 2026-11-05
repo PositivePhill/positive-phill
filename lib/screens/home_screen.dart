@@ -31,6 +31,7 @@ import 'package:positive_phill/widgets/sos_entry_card.dart';
 import 'package:positive_phill/widgets/streak_heatmap.dart';
 import 'package:positive_phill/widgets/xp_progress_bar.dart';
 import 'package:positive_phill/widgets/board_video_background.dart';
+import 'package:positive_phill/widgets/board_video_poster.dart';
 
 /// Text shadows for Home labels on photo/video/scrimmed backdrops (and the
 /// optional user text backlight).
@@ -94,8 +95,13 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _zenMode = false;
   bool _readyForAutoRead = false;
 
-  /// Drives readability scrim while a board video layer is actually presenting.
-  final ValueNotifier<bool> _boardVideoPresenting = ValueNotifier<bool>(false);
+  /// Video is mounted only after Home has rendered once (poster shows first).
+  final ValueNotifier<bool> _videoMountAllowed = ValueNotifier<bool>(false);
+  bool _videoMountScheduled = false;
+
+  /// Presets whose playback failed this session. Never persisted: the saved
+  /// preference stays and the poster remains visible.
+  final Set<BoardVideoPreset> _videoUnavailableThisSession = {};
 
   // Debounce timer for auto-read on PageView swipes. Coalesces fast swipes
   // and gives TtsProvider time to settle between page changes.
@@ -152,7 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _autoReadDebounce?.cancel();
     _pageController.dispose();
     _adsService.dispose();
-    _boardVideoPresenting.dispose();
+    _videoMountAllowed.dispose();
     super.dispose();
   }
 
@@ -372,13 +378,31 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _onBoardVideoPresentationChanged(bool visible) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+  /// After Home's first frame, waits (bounded) for the poster to decode so the
+  /// poster's request is not starved by the much larger video download.
+  void _scheduleVideoMount(BoardVideoPreset preset) {
+    if (_videoMountScheduled) return;
+    _videoMountScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      if (_boardVideoPresenting.value != visible) {
-        _boardVideoPresenting.value = visible;
+      final poster = preset.posterAssetPath();
+      if (poster != null) {
+        try {
+          await precacheImage(AssetImage(poster), context)
+              .timeout(const Duration(seconds: 2));
+        } catch (_) {}
       }
+      if (!mounted) return;
+      _videoMountAllowed.value = true;
     });
+  }
+
+  void _onBoardVideoUnavailable(BoardVideoPreset preset) {
+    if (!mounted || _videoUnavailableThisSession.contains(preset)) return;
+    if (kDebugMode) {
+      debugPrint('Home: ${preset.name} unavailable this session — poster kept');
+    }
+    setState(() => _videoUnavailableThisSession.add(preset));
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -391,8 +415,20 @@ class _HomeScreenState extends State<HomeScreen> {
     final completedDates = userProvider.progress.completedDates;
 
     if (userProvider.isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      final preset = StorageService.boardVideoPreset.value;
+      if (preset == BoardVideoPreset.none) {
+        return const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        );
+      }
+      return Scaffold(
+        body: Stack(
+          children: [
+            Positioned.fill(child: BoardVideoPoster(preset: preset)),
+            const Positioned.fill(child: _HomeReadabilityScrim()),
+            const Center(child: CircularProgressIndicator()),
+          ],
+        ),
       );
     }
 
@@ -406,14 +442,8 @@ class _HomeScreenState extends State<HomeScreen> {
             );
           }
 
-          if (videoPreset == BoardVideoPreset.none &&
-              _boardVideoPresenting.value) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              if (_boardVideoPresenting.value) {
-                _boardVideoPresenting.value = false;
-              }
-            });
+          if (videoPreset != BoardVideoPreset.none) {
+            _scheduleVideoMount(videoPreset);
           }
 
           return AnimatedBuilder(
@@ -423,7 +453,6 @@ class _HomeScreenState extends State<HomeScreen> {
               StorageService.customBackgroundAlignment,
               StorageService.textBacklightEnabled,
               StorageService.backgroundGradientPreset,
-              _boardVideoPresenting,
             ]),
             builder: (context, _) {
               final bgPath = StorageService.customBackgroundPath.value;
@@ -462,7 +491,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 }
               }
 
-              if (!hasCustomBg) {
+              if (!hasCustomBg && videoChosen) {
+                bgWidget = BoardVideoPoster(preset: videoPreset);
+              } else if (!hasCustomBg) {
                 final g =
                     bgPreset.linearGradientFor(Theme.of(context).brightness);
                 if (g != null) {
@@ -474,8 +505,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 }
               }
 
-              final needsReadabilityScrim =
-                  hasCustomBg || (videoChosen && _boardVideoPresenting.value);
+              // Poster or photo is visible from the first frame, so the scrim
+              // (and text colors) stay fixed while the video fades in.
+              final needsReadabilityScrim = hasCustomBg || videoChosen;
               final suppressPlainBackgroundTip = hasCustomBg || videoChosen;
 
               final readabilityShadows = homeReadabilityTextShadows(
@@ -491,35 +523,24 @@ class _HomeScreenState extends State<HomeScreen> {
               return Stack(
                 children: [
                   Positioned.fill(child: bgWidget),
-                  if (videoChosen)
+                  if (videoChosen &&
+                      !_videoUnavailableThisSession.contains(videoPreset))
                     Positioned.fill(
-                      child: BoardVideoBackground(
-                        key: ValueKey('board-video-${videoPreset.name}'),
-                        preset: videoPreset,
-                        onFatalError: () {
-                          unawaited(
-                            StorageService()
-                                .setBoardVideoPreset(BoardVideoPreset.none),
+                      child: ValueListenableBuilder<bool>(
+                        valueListenable: _videoMountAllowed,
+                        builder: (context, allowed, _) {
+                          if (!allowed) return const SizedBox.expand();
+                          return BoardVideoBackground(
+                            key: ValueKey('board-video-${videoPreset.name}'),
+                            preset: videoPreset,
+                            onPlaybackUnavailable: () =>
+                                _onBoardVideoUnavailable(videoPreset),
                           );
                         },
-                        onPresentationChanged: _onBoardVideoPresentationChanged,
                       ),
                     ),
                   if (needsReadabilityScrim)
-                    Positioned.fill(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.black.withValues(alpha: 0.5),
-                              Colors.black.withValues(alpha: 0.72),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+                    const Positioned.fill(child: _HomeReadabilityScrim()),
                   SafeArea(
                     child: LayoutBuilder(
                       builder: (context, constraints) {
@@ -1219,6 +1240,27 @@ class _CategorySelectorState extends State<CategorySelector> {
           ],
         );
       },
+    );
+  }
+}
+
+/// Darkening gradient over photo/poster/video backdrops for text contrast.
+class _HomeReadabilityScrim extends StatelessWidget {
+  const _HomeReadabilityScrim();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.black.withValues(alpha: 0.5),
+            Colors.black.withValues(alpha: 0.72),
+          ],
+        ),
+      ),
     );
   }
 }
