@@ -32,6 +32,7 @@ import 'package:positive_phill/widgets/streak_heatmap.dart';
 import 'package:positive_phill/widgets/xp_progress_bar.dart';
 import 'package:positive_phill/widgets/board_video_background.dart';
 import 'package:positive_phill/widgets/board_video_poster.dart';
+import 'package:positive_phill/widgets/reduce_motion.dart';
 
 /// Text shadows for Home labels on photo/video/scrimmed backdrops (and the
 /// optional user text backlight).
@@ -358,13 +359,18 @@ class _HomeScreenState extends State<HomeScreen> {
     final extraPack =
         await _affirmationsService.getExtraPack(category: _selectedCategory);
     if (!mounted) return;
+    final reduceMotion = ReduceMotion.of(context);
     setState(() {
       _currentPack.addAll(extraPack);
-      _pageController.animateToPage(
-        _currentPack.length - 5,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+      if (reduceMotion) {
+        _pageController.jumpToPage(_currentPack.length - 5);
+      } else {
+        _pageController.animateToPage(
+          _currentPack.length - 5,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
     });
   }
 
@@ -461,6 +467,8 @@ class _HomeScreenState extends State<HomeScreen> {
               final textBacklight = StorageService.textBacklightEnabled.value;
               final bgPreset = StorageService.backgroundGradientPreset.value;
               final videoChosen = videoPreset != BoardVideoPreset.none;
+              // Poster only: never mount (or start downloading) the video.
+              final reduceMotion = ReduceMotion.of(context);
 
               Widget bgWidget =
                   ColoredBox(color: Theme.of(context).scaffoldBackgroundColor);
@@ -524,6 +532,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Positioned.fill(child: bgWidget),
                   if (videoChosen &&
+                      !reduceMotion &&
                       !_videoUnavailableThisSession.contains(videoPreset))
                     Positioned.fill(
                       child: ValueListenableBuilder<bool>(
@@ -778,8 +787,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                             const SizedBox(
                                                 height: AppSpacing.sm),
                                             AnimatedSwitcher(
-                                              duration: const Duration(
-                                                  milliseconds: 300),
+                                              duration: ReduceMotion.of(context)
+                                                  ? Duration.zero
+                                                  : const Duration(
+                                                      milliseconds: 300),
                                               child: Text(
                                                 key: ValueKey(_dailyTheme),
                                                 _dailyTheme,
@@ -1116,7 +1127,7 @@ class _CategorySelectorState extends State<CategorySelector> {
         .getOffsetToReveal(chip, 0.5)
         .offset
         .clamp(position.minScrollExtent, position.maxScrollExtent);
-    if (animate) {
+    if (animate && !ReduceMotion.of(context)) {
       unawaited(position.animateTo(
         target,
         duration: const Duration(milliseconds: 250),

@@ -11,6 +11,7 @@ import 'package:positive_phill/services/haptics_service.dart';
 import 'package:positive_phill/theme.dart';
 import 'package:positive_phill/widgets/affirmation_card.dart';
 import 'package:positive_phill/widgets/celebration_animation.dart';
+import 'package:positive_phill/widgets/reduce_motion.dart';
 
 class SessionFlowScreen extends StatefulWidget {
   const SessionFlowScreen({super.key});
@@ -236,7 +237,9 @@ class CategoryCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppRadius.lg),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: ReduceMotion.of(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md, vertical: AppSpacing.sm),
         decoration: BoxDecoration(

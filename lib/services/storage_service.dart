@@ -27,6 +27,7 @@ class StorageService {
   static const String _dailyQuestsKey = 'daily_quests';
   static const String _backgroundGradientPresetKey = 'bg_gradient_preset';
   static const String _boardVideoPresetKey = 'board_video_preset';
+  static const String _reduceMotionKey = 'reduce_motion';
 
   /// Last chosen ambient loop id (`SanctuarySoundscape.storageId`).
   /// Playing state is not persisted.
@@ -44,6 +45,10 @@ class StorageService {
 
   static final ValueNotifier<BoardVideoPreset> boardVideoPreset =
       ValueNotifier<BoardVideoPreset>(BoardVideoPreset.none);
+
+  /// In-app Reduce Motion preference only; system accessibility settings are
+  /// combined with it by `ReduceMotion`. Unset means off.
+  static final ValueNotifier<bool> reduceMotion = ValueNotifier<bool>(false);
 
   /// Keys whose presence proves this device has run the app before.
   /// `theme_mode` and `accent_preset` are owned by ThemeProvider.
@@ -69,6 +74,7 @@ class StorageService {
     _backgroundGradientPresetKey,
     sanctuarySoundscape,
     sanctuaryVolume,
+    _reduceMotionKey,
     'theme_mode',
     'accent_preset',
   ];
@@ -103,6 +109,34 @@ class StorageService {
         'board_video_preset migrated: ${preset.storageId} '
         '(${returning ? 'returning install' : 'fresh install'})',
       );
+    }
+  }
+
+  /// Call during cold start before [runApp] so the first Home frame never
+  /// mounts background video for a user who turned motion off.
+  static Future<void> hydrateReduceMotionOnLaunch() async {
+    await StorageService().getReduceMotion();
+  }
+
+  Future<bool> getReduceMotion() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final value = prefs.getBool(_reduceMotionKey) ?? false;
+      reduceMotion.value = value;
+      return value;
+    } catch (e) {
+      debugPrint('Failed to load reduce_motion: $e');
+      return reduceMotion.value;
+    }
+  }
+
+  Future<void> setReduceMotion(bool enabled) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_reduceMotionKey, enabled);
+      reduceMotion.value = enabled;
+    } catch (e) {
+      debugPrint('Failed to save reduce_motion: $e');
     }
   }
 

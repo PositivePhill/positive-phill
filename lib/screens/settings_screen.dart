@@ -25,6 +25,7 @@ import 'package:positive_phill/services/storage_service.dart';
 import 'package:positive_phill/theme.dart';
 import 'package:positive_phill/widgets/accent_preset_sheet.dart';
 import 'package:positive_phill/widgets/background_style_sheet.dart';
+import 'package:positive_phill/widgets/reduce_motion.dart';
 import 'package:positive_phill/widgets/sanctuary_sounds_sheet.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -505,6 +506,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 },
                 secondary: Icon(Icons.self_improvement,
                     color: colorScheme.primary, size: 24),
+              ),
+              ValueListenableBuilder<bool>(
+                valueListenable: StorageService.reduceMotion,
+                builder: (context, reduceMotion, _) {
+                  final systemReduces = ReduceMotion.systemRequestOf(context);
+                  return SwitchListTile(
+                    title: const Text('Reduce Motion'),
+                    subtitle: Text(
+                      systemReduces && !reduceMotion
+                          ? 'Already on from your device accessibility '
+                              'settings: posters replace video and animations '
+                              'are minimized'
+                          : 'Show still posters instead of video and minimize '
+                              'animations',
+                    ),
+                    value: reduceMotion,
+                    onChanged: (value) async {
+                      HapticsService.feedback(FeedbackType.selection);
+                      await _storage.setReduceMotion(value);
+                    },
+                    secondary: Icon(Icons.motion_photos_off,
+                        color: colorScheme.primary, size: 24),
+                  );
+                },
               ),
               ListTile(
                 leading: Icon(Icons.gradient, color: colorScheme.primary),

@@ -11,11 +11,13 @@ import 'package:positive_phill/providers/user_provider.dart';
 import 'package:positive_phill/nav.dart';
 import 'package:positive_phill/services/affirmations_service.dart';
 import 'package:positive_phill/services/storage_service.dart';
+import 'package:positive_phill/widgets/reduce_motion.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AffirmationsService.preload();
   await StorageService.hydrateBoardVideoPresetOnLaunch();
+  await StorageService.hydrateReduceMotionOnLaunch();
   // Initialize Mobile Ads only on supported platforms (Android/iOS). Skip on web.
   if (!kIsWeb) {
     try {
@@ -43,17 +45,23 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => RitualProvider()),
         ChangeNotifierProvider(create: (_) => SanctuaryAudioProvider()),
       ],
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, _) {
-          return MaterialApp.router(
-            title: 'Positive Phill',
-            debugShowCheckedModeBanner: false,
-            theme: themeProvider.lightThemeData,
-            darkTheme: themeProvider.darkThemeData,
-            themeMode: themeProvider.themeMode,
-            routerConfig: AppRouter.router,
-          );
-        },
+      child: ReduceMotion(
+        child: Consumer<ThemeProvider>(
+          builder: (context, themeProvider, _) {
+            return MaterialApp.router(
+              title: 'Positive Phill',
+              debugShowCheckedModeBanner: false,
+              theme: themeProvider.lightThemeData,
+              darkTheme: themeProvider.darkThemeData,
+              themeMode: themeProvider.themeMode,
+              themeAnimationDuration: ReduceMotion.of(context)
+                  ? Duration.zero
+                  : kThemeAnimationDuration,
+              builder: ReduceMotion.appBuilder,
+              routerConfig: AppRouter.router,
+            );
+          },
+        ),
       ),
     );
   }

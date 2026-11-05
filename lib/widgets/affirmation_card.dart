@@ -8,6 +8,7 @@ import 'package:positive_phill/quest_helper.dart';
 import 'package:positive_phill/services/haptics_service.dart';
 import 'package:positive_phill/theme.dart';
 import 'package:positive_phill/widgets/affirmation_share_sheet.dart';
+import 'package:positive_phill/widgets/reduce_motion.dart';
 
 class AffirmationCard extends StatefulWidget {
   final Affirmation affirmation;
@@ -89,7 +90,9 @@ class _AffirmationCardState extends State<AffirmationCard>
     final userProvider = context.read<UserProvider>();
     final isFavorite = userProvider.isFavorite(widget.affirmation.id);
     if (!isFavorite) {
-      _controller.forward().then((_) => _controller.reverse());
+      if (!ReduceMotion.of(context)) {
+        _controller.forward().then((_) => _controller.reverse());
+      }
       HapticsService.feedback(FeedbackType.light);
     }
     await userProvider.toggleFavorite(widget.affirmation.id);

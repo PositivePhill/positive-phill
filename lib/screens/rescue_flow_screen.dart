@@ -14,6 +14,7 @@ import 'package:positive_phill/services/haptics_service.dart';
 import 'package:positive_phill/services/storage_service.dart';
 import 'package:positive_phill/theme.dart';
 import 'package:positive_phill/widgets/affirmation_card.dart';
+import 'package:positive_phill/widgets/reduce_motion.dart';
 import 'package:positive_phill/widgets/ritual_timer_bar.dart';
 import 'package:positive_phill/widgets/sanctuary_sounds_sheet.dart';
 
@@ -188,6 +189,10 @@ class _RescueFlowScreenState extends State<RescueFlowScreen> {
     }
 
     final next = (_currentPage + 1) % _pack.length;
+    if (ReduceMotion.of(context)) {
+      _pageController.jumpToPage(next);
+      return;
+    }
     await _pageController.animateToPage(
       next,
       duration: const Duration(milliseconds: 340),

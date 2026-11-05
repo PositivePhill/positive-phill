@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:positive_phill/models/daily_quests.dart';
 import 'package:positive_phill/providers/quest_provider.dart';
 import 'package:positive_phill/theme.dart';
+import 'package:positive_phill/widgets/reduce_motion.dart';
 
 class DailyQuestCard extends StatelessWidget {
   const DailyQuestCard({super.key});
@@ -58,7 +59,9 @@ class DailyQuestCard extends StatelessWidget {
               child: Row(
                 children: [
                   AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 250),
+                    duration: ReduceMotion.of(context)
+                        ? Duration.zero
+                        : const Duration(milliseconds: 250),
                     child: Icon(
                       done
                           ? Icons.check_circle_rounded
