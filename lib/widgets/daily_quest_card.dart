@@ -38,8 +38,6 @@ class DailyQuestCard extends StatelessWidget {
                     color: colorScheme.onSurface,
                     fontWeight: FontWeight.bold,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(width: 4),
@@ -73,36 +71,45 @@ class DailyQuestCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
-                  Text(
-                    type.emoji,
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                  const SizedBox(width: 6),
                   Expanded(
-                    child: Text(
-                      type.label,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: done
-                            ? colorScheme.onSurfaceVariant
-                            : colorScheme.onSurface,
-                        decoration: done
-                            ? TextDecoration.lineThrough
-                            : null,
-                        decorationColor: colorScheme.onSurfaceVariant,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      softWrap: true,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '+5 XP',
-                    style: textTheme.labelSmall?.copyWith(
-                      color: done
-                          ? colorScheme.onSurfaceVariant
-                          : colorScheme.primary,
-                      fontWeight: FontWeight.w600,
+                    child: Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 4,
+                      children: [
+                        Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: type.emoji,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                              const WidgetSpan(child: SizedBox(width: 6)),
+                              TextSpan(
+                                text: type.label,
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: done
+                                      ? colorScheme.onSurfaceVariant
+                                      : colorScheme.onSurface,
+                                  decoration:
+                                      done ? TextDecoration.lineThrough : null,
+                                  decorationColor: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                          softWrap: true,
+                        ),
+                        Text(
+                          '+5 XP',
+                          style: textTheme.labelSmall?.copyWith(
+                            color: done
+                                ? colorScheme.onSurfaceVariant
+                                : colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -132,8 +139,6 @@ class DailyQuestCard extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                       ),
                       textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                       softWrap: true,
                     ),
                   ),

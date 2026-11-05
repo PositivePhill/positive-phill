@@ -87,14 +87,16 @@ class StreakDisplay extends StatelessWidget {
               ]
             : null,
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: AppSpacing.sm,
+        runSpacing: AppSpacing.xs,
         children: [
           const Text(
             '🔥',
             style: TextStyle(fontSize: 32),
           ),
-          const SizedBox(width: AppSpacing.sm),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
